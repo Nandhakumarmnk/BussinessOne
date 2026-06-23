@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  backend:
+    name: Backend (build + test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore backend/ERP.sln
+
+      - name: Build
+        run: dotnet build backend/ERP.sln -c Release --no-restore
+
+      - name: Verify EF migrations are up to date
+        run: |
+          dotnet tool restore
+          dotnet ef migrations has-pending-model-changes \
+            --project backend/src/ERP.Infrastructure/ERP.Infrastructure.csproj \
+            --startup-project backend/src/ERP.WebApi/ERP.WebApi.csproj
+        env:
+          ERP_CONNECTION: "Host=localhost;Database=erp;Username=postgres;Password=postgres"
+
+      - name: Test
+        run: dotnet test backend/ERP.sln -c Release --no-build --verbosity normal
+
+  docker:
+    name: API image builds
+    runs-on: ubuntu-latest
+    needs: backend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image
+        run: docker build -f infra/docker/api.Dockerfile -t erp-api:ci .
+
+  web:
+    name: Web (lint + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Enable pnpm
+        run: corepack enable pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile || pnpm install
+      - name: Build web
+        run: pnpm --filter @erp/web build

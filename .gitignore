@@ -1,0 +1,39 @@
+# ---- .NET ----
+bin/
+obj/
+*.user
+*.suo
+.vs/
+artifacts/
+*.nupkg
+TestResults/
+coverage*.xml
+[Dd]ebug/
+[Rr]elease/
+
+# ---- Node / frontend ----
+node_modules/
+dist/
+build/
+.expo/
+.expo-shared/
+*.tsbuildinfo
+.pnpm-store/
+
+# ---- Env & secrets ----
+.env
+.env.*
+!.env.example
+appsettings.*.local.json
+*.pfx
+secrets.json
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+.idea/
+*.log
+
+# ---- Docker volumes (local) ----
+.data/
+pgdata/

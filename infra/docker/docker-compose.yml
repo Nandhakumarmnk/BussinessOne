@@ -1,0 +1,45 @@
+# Local / pilot stack: PostgreSQL + the API. (GCP free-tier Option B runs this same compose
+# on an e2-micro VM behind a Caddy TLS reverse proxy — see docs/01.)
+#
+#   docker compose -f infra/docker/docker-compose.yml up --build
+#
+# API:     http://localhost:8080  (Swagger at /swagger)
+# Health:  http://localhost:8080/health/ready
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: erp-db
+    environment:
+      POSTGRES_DB: erp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d erp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/api.Dockerfile
+    container_name: erp-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Default: "Host=db;Port=5432;Database=erp;Username=postgres;Password=postgres"
+      Database__AutoMigrate: "true"
+      Jwt__SigningKey: "dev-only-signing-key-change-me-please-32+chars-minimum"
+      Cors__Origins__0: "http://localhost:5173"
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

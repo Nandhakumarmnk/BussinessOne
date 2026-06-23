@@ -1,0 +1,12 @@
+{
+  "name": "@erp/types",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "description": "Shared DTOs/enums. In Phase 1 these are generated from the backend OpenAPI spec.",
+  "scripts": {
+    "generate": "echo \"openapi-typescript ../../backend/.../swagger.json -o src/api.ts (wired in Phase 1)\""
+  }
+}

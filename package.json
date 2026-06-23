@@ -1,0 +1,15 @@
+{
+  "name": "business-one",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-Business Management ERP — single-codebase Web + Mobile + API",
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:web": "pnpm --filter @erp/web dev",
+    "build:web": "pnpm --filter @erp/web build",
+    "lint": "echo \"add eslint per package\""
+  }
+}

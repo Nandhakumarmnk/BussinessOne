@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Business One",
+    "slug": "business-one",
+    "scheme": "businessone",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "net.ramrajcotton.businessone",
+      "permissions": ["CAMERA", "INTERNET", "POST_NOTIFICATIONS"]
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-camera",
+      "expo-notifications"
+    ],
+    "extra": {
+      "apiBaseUrl": "http://10.0.2.2:8080/api/v1"
+    }
+  }
+}
