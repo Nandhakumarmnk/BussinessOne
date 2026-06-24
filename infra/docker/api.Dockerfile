@@ -4,14 +4,16 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Restore (copy only what the solution needs for a cached restore layer)
-COPY backend/ERP.sln backend/Directory.Build.props backend/dotnet-tools.json ./backend/
+# Restore only the WebApi project (+ its transitive project refs). Restoring the
+# whole .sln would require the test projects under backend/tests, which are not
+# copied into the runtime image.
+COPY backend/Directory.Build.props backend/dotnet-tools.json ./backend/
 COPY backend/src ./backend/src
-RUN dotnet restore backend/ERP.sln
+RUN dotnet restore backend/src/ERP.WebApi/ERP.WebApi.csproj
 
 # Publish the API
 RUN dotnet publish backend/src/ERP.WebApi/ERP.WebApi.csproj \
-    -c Release -o /app/publish /p:UseAppHost=false
+    -c Release -o /app/publish /p:UseAppHost=false --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
