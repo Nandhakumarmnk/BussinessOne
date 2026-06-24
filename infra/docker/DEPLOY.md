@@ -173,6 +173,8 @@ that origin matches `WEB_ORIGIN` in the VM `.env` (step 5) so CORS allows it.
 cd ~/BussinessOne && git pull --ff-only
 docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env pull
 docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env up -d
+# Recreated api gets a new Docker IP; restart Caddy so it re-resolves (else 503 no-upstreams)
+docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env restart caddy
 ```
 
 **Rollback** (docs/12 §5) — pin the previous image tag and bring it back up:
@@ -200,4 +202,5 @@ locked to prod origins, `/health/ready` wired to uptime monitoring.
 | API restarts / OOM | Swap not added (step 4a); confirm with `free -h`. |
 | `denied` pulling image | VM not logged into GHCR, or `API_IMAGE` owner not lowercase. |
 | API won't start, key error | `JWT_SIGNING_KEY` shorter than 32 chars (docs/12 §1). |
+| 503 "no upstreams available" | api container was recreated with a new Docker IP; `docker compose … restart caddy` so Caddy re-resolves it. |
 | DB connection refused | Run all compose commands with the same `--env-file`; check `docker ... ps` shows `erp-db` healthy. |

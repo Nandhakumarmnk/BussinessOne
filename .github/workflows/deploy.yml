@@ -76,6 +76,9 @@ jobs:
             sed -i "s|^API_IMAGE=.*|API_IMAGE=${IMG}|" infra/docker/.env
             docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env pull
             docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env up -d
+            # A recreated api container gets a new Docker IP; Caddy caches the old one and
+            # would serve 503 "no upstreams". Restart Caddy so it re-resolves api:8080.
+            docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env restart caddy
             sleep 5
             # Smoke test via the loopback-published API port
             curl -fsS http://127.0.0.1:8080/health/ready
