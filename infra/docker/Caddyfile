@@ -1,17 +1,24 @@
-# Caddy reverse proxy with automatic HTTPS (Let's Encrypt).
-# {$API_DOMAIN} is injected from infra/docker/.env via docker-compose.prod.yml.
-# Caddy provisions and renews the TLS cert automatically once the domain's
-# A record points at this VM and ports 80/443 are open.
+# Caddy with automatic HTTPS (Let's Encrypt). Serves the React SPA from /srv and
+# reverse-proxies API/health/swagger routes to the api container. {$API_DOMAIN} is
+# injected from infra/docker/.env via docker-compose.prod.yml. This file is baked
+# into the web image (infra/docker/web.Dockerfile) alongside the built SPA.
 
 {$API_DOMAIN} {
 	encode gzip
 
-	# HSTS — the app already sets nosniff/X-Frame-Options/etc. (see docs/12 §1);
-	# HTTPS enforcement + HSTS belong at the TLS edge.
+	# HTTPS enforcement + HSTS at the TLS edge (app sets the other security headers).
 	header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 
-	reverse_proxy api:8080 {
-		health_uri /health/ready
-		health_interval 30s
+	# Backend: REST API, health probes, and Swagger -> ASP.NET container.
+	@backend path /api/* /health* /swagger*
+	handle @backend {
+		reverse_proxy api:8080
+	}
+
+	# Everything else -> the React SPA, with client-side routing fallback.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
 	}
 }

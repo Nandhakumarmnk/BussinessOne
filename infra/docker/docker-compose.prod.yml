@@ -47,8 +47,10 @@ services:
       db:
         condition: service_healthy
 
+  # Edge: serves the React SPA (apps/web) and reverse-proxies API routes to `api`.
+  # Image is built from infra/docker/web.Dockerfile (Caddy + built SPA + Caddyfile).
   caddy:
-    image: caddy:2-alpine
+    image: ${WEB_IMAGE:?set WEB_IMAGE in infra/docker/.env (e.g. ghcr.io/<owner>/erp-web:<sha>)}
     container_name: erp-caddy
     restart: unless-stopped
     ports:
@@ -57,7 +59,6 @@ services:
     environment:
       API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in infra/docker/.env (must have a DNS A record to this VM)}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data       # Let's Encrypt certs (persisted so they survive restarts)
       - caddy_config:/config
     depends_on:

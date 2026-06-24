@@ -23,6 +23,7 @@ concurrency:
 
 env:
   IMAGE: ghcr.io/nandhakumarmnk/erp-api
+  WEB_IMAGE_REPO: ghcr.io/nandhakumarmnk/erp-web
 
 jobs:
   deploy:
@@ -53,24 +54,38 @@ jobs:
             ${{ env.IMAGE }}:${{ github.event.workflow_run.head_sha }}
             ${{ env.IMAGE }}:latest
 
+      - name: Build and push web image (SPA + Caddy)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/web.Dockerfile
+          push: true
+          tags: |
+            ${{ env.WEB_IMAGE_REPO }}:${{ github.event.workflow_run.head_sha }}
+            ${{ env.WEB_IMAGE_REPO }}:latest
+
       - name: Deploy to the VM over SSH
         uses: appleboy/ssh-action@v1
         env:
           IMG: ${{ env.IMAGE }}:${{ github.event.workflow_run.head_sha }}
+          WEBIMG: ${{ env.WEB_IMAGE_REPO }}:${{ github.event.workflow_run.head_sha }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ACTOR: ${{ github.actor }}
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
-          envs: IMG,GHCR_TOKEN,ACTOR
+          envs: IMG,WEBIMG,GHCR_TOKEN,ACTOR
           script: |
             set -e
             echo "$GHCR_TOKEN" | sudo docker login ghcr.io -u "$ACTOR" --password-stdin
             cd ~/BussinessOne
             git fetch origin && git reset --hard origin/main
-            # Point the stack at the freshly pushed image and roll it
+            # Point the stack at the freshly pushed images and roll it
             sed -i "s|^API_IMAGE=.*|API_IMAGE=${IMG}|" infra/docker/.env
+            grep -q '^WEB_IMAGE=' infra/docker/.env \
+              && sed -i "s|^WEB_IMAGE=.*|WEB_IMAGE=${WEBIMG}|" infra/docker/.env \
+              || echo "WEB_IMAGE=${WEBIMG}" >> infra/docker/.env
             sudo docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env pull
             sudo docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env up -d
             # Recreated api gets a new Docker IP; restart Caddy so it re-resolves (else 503)

@@ -38,13 +38,15 @@ jobs:
         run: dotnet test backend/ERP.sln -c Release --no-build --verbosity normal
 
   docker:
-    name: API image builds
+    name: Images build
     runs-on: ubuntu-latest
     needs: backend
     steps:
       - uses: actions/checkout@v4
       - name: Build API image
         run: docker build -f infra/docker/api.Dockerfile -t erp-api:ci .
+      - name: Build web image (SPA + Caddy)
+        run: docker build -f infra/docker/web.Dockerfile -t erp-web:ci .
 
   web:
     name: Web (lint + build)

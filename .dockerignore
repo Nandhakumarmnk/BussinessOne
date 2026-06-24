@@ -1,0 +1,13 @@
+# Keep Docker build contexts lean and reproducible (used by api.Dockerfile + web.Dockerfile)
+**/node_modules
+**/dist
+**/bin
+**/obj
+**/.vs
+**/.expo
+**/TestResults
+.git
+.github
+.data
+pgdata
+*.log
