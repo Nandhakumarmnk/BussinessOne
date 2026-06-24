@@ -107,7 +107,6 @@ public static class DbSeeder
             PasswordHash = hasher.Hash("Owner@123"),
             TenantId = tenant.Id
         };
-        tenant.OwnerUserId = owner.Id;
 
         var transportType = await db.BusinessTypes.FirstAsync(bt => bt.Code == BusinessTypeCodes.Transport, ct);
         var business = new Business
@@ -127,6 +126,13 @@ public static class DbSeeder
             BusinessId = business.Id,
             RoleId = ownerRole.Id
         });
+
+        // Tenant<->User is a circular FK (tenant.owner_user_id -> user, user.tenant_id ->
+        // tenant). Insert all rows first with owner_user_id left NULL, then set it in a
+        // second save; otherwise EF's insert ordering throws a circular-dependency error.
+        await db.SaveChangesAsync(ct);
+        tenant.OwnerUserId = owner.Id;
+        await db.SaveChangesAsync(ct);
     }
 
     // ---- RBAC source of truth (mirrors docs/10) ----
