@@ -25,11 +25,12 @@ jobs:
         run: dotnet build backend/ERP.sln -c Release --no-restore
 
       - name: Verify EF migrations are up to date
+        working-directory: backend
         run: |
           dotnet tool restore
           dotnet ef migrations has-pending-model-changes \
-            --project backend/src/ERP.Infrastructure/ERP.Infrastructure.csproj \
-            --startup-project backend/src/ERP.WebApi/ERP.WebApi.csproj
+            --project src/ERP.Infrastructure/ERP.Infrastructure.csproj \
+            --startup-project src/ERP.WebApi/ERP.WebApi.csproj
         env:
           ERP_CONNECTION: "Host=localhost;Database=erp;Username=postgres;Password=postgres"
 

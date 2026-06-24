@@ -1,17 +1,15 @@
 name: Deploy
 
-# Runs only after the CI workflow succeeds on main: build + push the API image to
-# GHCR, then SSH to the e2-micro VM and roll the stack (docs/12 §5).
+# Runs after the CI workflow succeeds on main: build + push the API image to GHCR,
+# then SSH to the e2-micro VM and roll the stack (docs/12 §5, infra/docker/DEPLOY.md).
 #
-# Required repository secrets (Settings → Secrets and variables → Actions):
-#   VM_HOST     external IP / hostname of the GCE VM
-#   VM_USER     SSH user on the VM (the user that owns ~/BussinessOne and is in the docker group)
+# Required repository secrets (Settings -> Secrets and variables -> Actions):
+#   VM_HOST     external IP / hostname of the GCE VM (e.g. 34.122.117.197)
+#   VM_USER     SSH user on the VM that owns ~/BussinessOne (e.g. PC20_SIT)
 #   VM_SSH_KEY  private SSH key whose public key is in the VM user's authorized_keys
-#   GHCR_TOKEN  a GitHub PAT with read:packages, so the VM can pull the image
-#               (skip if you make the GHCR package public — then drop the docker login line)
 #
-# NOTE: GHCR image paths must be lowercase. If your GitHub owner has capitals,
-# replace ${{ github.repository_owner }} below with the lowercase owner string.
+# No GHCR PAT needed: the VM authenticates its pull with the workflow's GITHUB_TOKEN
+# (valid for the duration of the run). GHCR image owner is lowercase (GHCR requirement).
 
 on:
   workflow_run:
@@ -22,6 +20,9 @@ on:
 concurrency:
   group: deploy-prod
   cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/nandhakumarmnk/erp-api
 
 jobs:
   deploy:
@@ -39,7 +40,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.repository_owner }}
+          username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push API image
@@ -49,37 +50,31 @@ jobs:
           file: infra/docker/api.Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/erp-api:${{ github.event.workflow_run.head_sha }}
-            ghcr.io/${{ github.repository_owner }}/erp-api:latest
+            ${{ env.IMAGE }}:${{ github.event.workflow_run.head_sha }}
+            ${{ env.IMAGE }}:latest
 
       - name: Deploy to the VM over SSH
         uses: appleboy/ssh-action@v1
         env:
-          OWNER: ${{ github.repository_owner }}
-          SHA: ${{ github.event.workflow_run.head_sha }}
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          IMG: ${{ env.IMAGE }}:${{ github.event.workflow_run.head_sha }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
-          envs: OWNER,SHA,GHCR_TOKEN
+          envs: IMG,GHCR_TOKEN,ACTOR
           script: |
             set -e
+            echo "$GHCR_TOKEN" | sudo docker login ghcr.io -u "$ACTOR" --password-stdin
             cd ~/BussinessOne
-            git fetch --all
-            git checkout main
-            git pull --ff-only
-            # Authenticate to GHCR (remove these two lines if the package is public)
-            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$OWNER" --password-stdin
-            IMG="ghcr.io/${OWNER}/erp-api:${SHA}"
-            # Pin the deployed image tag into .env so manual `up` matches CI
+            git fetch origin && git reset --hard origin/main
+            # Point the stack at the freshly pushed image and roll it
             sed -i "s|^API_IMAGE=.*|API_IMAGE=${IMG}|" infra/docker/.env
-            docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env pull
-            docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env up -d
-            # A recreated api container gets a new Docker IP; Caddy caches the old one and
-            # would serve 503 "no upstreams". Restart Caddy so it re-resolves api:8080.
-            docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env restart caddy
+            sudo docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env pull
+            sudo docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env up -d
+            # Recreated api gets a new Docker IP; restart Caddy so it re-resolves (else 503)
+            sudo docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env restart caddy
             sleep 5
-            # Smoke test via the loopback-published API port
             curl -fsS http://127.0.0.1:8080/health/ready
-            docker image prune -f
+            sudo docker image prune -f
