@@ -38,6 +38,8 @@ services:
       Database__AutoMigrate: "true"
       Jwt__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY in infra/docker/.env (32+ random chars)}
       Cors__Origins__0: ${WEB_ORIGIN:?set WEB_ORIGIN in infra/docker/.env}
+      # Expose Swagger UI in Production when SWAGGER_ENABLED=true (default off)
+      Swagger__Enabled: ${SWAGGER_ENABLED:-false}
     ports:
       # Loopback only — lets the VM curl /health/ready; not reachable from the internet.
       - "127.0.0.1:8080:8080"

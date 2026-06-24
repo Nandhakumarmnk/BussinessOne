@@ -144,7 +144,9 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 if (rateLimitingEnabled) app.UseRateLimiter();
 
-if (!app.Environment.IsProduction())
+// Swagger UI is on outside Production; in Production enable it explicitly via
+// Swagger:Enabled=true (env Swagger__Enabled=true).
+if (!app.Environment.IsProduction() || app.Configuration.GetValue("Swagger:Enabled", false))
 {
     app.UseSwagger();
     app.UseSwaggerUI(o =>
