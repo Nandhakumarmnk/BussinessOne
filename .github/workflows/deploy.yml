@@ -75,6 +75,12 @@ jobs:
             sudo docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env up -d
             # Recreated api gets a new Docker IP; restart Caddy so it re-resolves (else 503)
             sudo docker compose -f infra/docker/docker-compose.prod.yml --env-file infra/docker/.env restart caddy
-            sleep 5
+            # Poll health — first-boot EF migrate can take ~20-40s before Kestrel accepts traffic
+            for i in $(seq 1 18); do
+              if curl -fsS http://127.0.0.1:8080/health/ready >/dev/null 2>&1; then
+                echo "API healthy after ~$((i*5))s"; break
+              fi
+              echo "waiting for API... ($i/18)"; sleep 5
+            done
             curl -fsS http://127.0.0.1:8080/health/ready
             sudo docker image prune -f
