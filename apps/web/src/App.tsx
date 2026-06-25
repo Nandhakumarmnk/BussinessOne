@@ -5,8 +5,37 @@ import type { BusinessDto, DashboardSummary, MemberDto, RefItem, UserSummary } f
 const inr = (n: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
 
-// Phase 1 demo console: log in, switch business, create a business, and invite users with a
-// role. Real routed UI + module screens arrive in Phase 2+ (see docs/08).
+const initials = (name: string) =>
+  name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
+
+/* -------------------------------------------------------------------------- */
+/* Icons (Lucide-style, inline so there is no runtime dependency)             */
+/* -------------------------------------------------------------------------- */
+const PATHS: Record<string, string> = {
+  dashboard: "M3 3h7v7H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 14h7v7H3z",
+  building: "M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18ZM9 6h.01M9 10h.01M9 14h.01M14 6h.01M14 10h.01M14 14h.01M9 22v-4h6v4",
+  users: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
+  up: "M16 7h6v6M22 7l-8.5 8.5-5-5L2 17",
+  down: "M16 17h6v-6M22 17l-8.5-8.5-5 5L2 7",
+  wallet: "M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2M16 12h.01M21 9v6h-5a3 3 0 0 1 0-6Z",
+  clock: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM12 6v6l4 2",
+  card: "M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2zM2 10h20",
+  logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
+  plus: "M12 5v14M5 12h14",
+  tick: "M20 6 9 17l-5-5",
+  shield: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z",
+  bolt: "M13 2 3 14h7l-1 8 10-12h-7l1-8Z",
+};
+
+function Icon({ name, className = "icon" }: { name: string; className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={PATHS[name]} />
+    </svg>
+  );
+}
+
 export function App() {
   const [user, setUser] = useState<UserSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -15,6 +44,9 @@ export function App() {
   return <Console user={user} onLogout={() => { setAccessToken(null); setActiveBusiness(null); setUser(null); }} />;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Login                                                                      */
+/* -------------------------------------------------------------------------- */
 function Login({ onAuthed, setError, error }: {
   onAuthed: (u: UserSummary) => void;
   setError: (e: string | null) => void;
@@ -39,23 +71,65 @@ function Login({ onAuthed, setError, error }: {
     }
   }
 
+  const features = [
+    "Multi-business, role-based access control",
+    "Real-time income, expense & profit insight",
+    "Built for transport, CCTV, farm & coconut ops",
+  ];
+
   return (
-    <div style={styles.page}>
-      <form style={styles.card} onSubmit={submit}>
-        <h1 style={styles.title}>Business One</h1>
-        <p style={styles.subtitle}>Multi-Business ERP · Phase 1</p>
-        <label style={styles.label}>Mobile / Email</label>
-        <input style={styles.input} value={mobileOrEmail} onChange={(e) => setMobileOrEmail(e.target.value)} />
-        <label style={styles.label}>Password</label>
-        <input style={styles.input} type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        <button style={styles.button} disabled={busy}>{busy ? "Signing in…" : "Log in"}</button>
-        {error && <p style={styles.error}>{error}</p>}
-        <p style={styles.hint}>Seeded: owner@business-one.local / Owner@123</p>
-      </form>
+    <div className="auth">
+      <aside className="auth__brand">
+        <div className="auth__brandtop">
+          <div className="brand__mark">B1</div>
+          <div>
+            <div className="brand__name" style={{ fontSize: 16 }}>Business One</div>
+            <div className="brand__tag">Multi-Business ERP</div>
+          </div>
+        </div>
+
+        <div className="auth__headline">
+          <h2>Run every business from a single, unified console.</h2>
+          <p>Finance, people and operations — consolidated, secure and always in sync.</p>
+        </div>
+
+        <div className="auth__features">
+          {features.map((f) => (
+            <div className="auth__feature" key={f}>
+              <span className="tick"><Icon name="tick" /></span>{f}
+            </div>
+          ))}
+        </div>
+      </aside>
+
+      <div className="auth__form">
+        <form className="auth-card" onSubmit={submit}>
+          <h1>Welcome back</h1>
+          <p className="sub">Sign in to your Business One workspace.</p>
+
+          <div className="form">
+            <div className="field">
+              <label>Mobile / Email</label>
+              <input className="input" value={mobileOrEmail} onChange={(e) => setMobileOrEmail(e.target.value)} />
+            </div>
+            <div className="field">
+              <label>Password</label>
+              <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+            </div>
+            <button className="btn btn--block" disabled={busy}>{busy ? "Signing in…" : "Log in"}</button>
+            {error && <p className="formerror">{error}</p>}
+          </div>
+
+          <div className="demo">Demo · <b>owner@business-one.local</b> / <b>Owner@123</b></div>
+        </form>
+      </div>
     </div>
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Console (authenticated shell)                                              */
+/* -------------------------------------------------------------------------- */
 function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }) {
   const [businesses, setBusinesses] = useState<BusinessDto[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -64,6 +138,7 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
   const [members, setMembers] = useState<MemberDto[]>([]);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [nav, setNav] = useState("dashboard");
 
   const selectBusiness = useCallback(async (id: string) => {
     setActiveId(id);
@@ -100,62 +175,136 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
 
   const active = businesses.find((b) => b.id === activeId) ?? null;
 
+  const goto = (id: string) => {
+    setNav(id);
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const navItems = [
+    { id: "dashboard", label: "Dashboard", icon: "dashboard" },
+    { id: "businesses", label: "Businesses", icon: "building" },
+    { id: "members", label: "Members", icon: "users" },
+  ];
+
   return (
-    <div style={styles.app}>
-      <header style={styles.topbar}>
-        <strong>Business One</strong>
-        <select style={styles.select} value={activeId ?? ""} onChange={(e) => selectBusiness(e.target.value)}>
-          {businesses.length === 0 && <option value="">No businesses</option>}
-          {businesses.map((b) => (
-            <option key={b.id} value={b.id}>{b.name} · {b.businessTypeCode}</option>
+    <div className="layout">
+      <aside className="sidebar">
+        <div className="brand">
+          <div className="brand__mark">B1</div>
+          <div>
+            <div className="brand__name">Business One</div>
+            <div className="brand__tag">Multi-Business ERP</div>
+          </div>
+        </div>
+
+        <nav className="nav">
+          <div className="nav__label">Workspace</div>
+          {navItems.map((item) => (
+            <div
+              key={item.id}
+              className={`nav__item${nav === item.id ? " is-active" : ""}`}
+              onClick={() => goto(item.id)}
+            >
+              <Icon name={item.icon} />{item.label}
+            </div>
           ))}
-        </select>
-        <span style={{ flex: 1 }} />
-        <span style={styles.who}>{user.fullName}{user.isSuperAdmin ? " (Super Admin)" : ""}</span>
-        <button style={styles.linkBtn} onClick={onLogout}>Log out</button>
-      </header>
+        </nav>
 
-      {error && <div style={styles.banner}>{error}</div>}
+        <div className="sidebar__foot">
+          <b>Phase 1</b> · Demo console<br />v0.1.0
+        </div>
+      </aside>
 
-      {summary && active && <DashboardPanel summary={summary} businessName={active.name} />}
+      <div className="main">
+        <header className="topbar">
+          <div>
+            <div className="topbar__title">{active ? active.name : "Workspace"}</div>
+            <div className="topbar__crumb">{active ? `${active.businessTypeName} · Overview` : "No business selected"}</div>
+          </div>
 
-      <main style={styles.grid}>
-        <BusinessesPanel
-          businesses={businesses}
-          types={types}
-          onCreated={async (id) => { await loadBusinesses(false); await selectBusiness(id); }}
-          setError={setError}
-        />
-        <MembersPanel
-          active={active}
-          members={members}
-          roles={roles}
-          onInvited={async () => { if (activeId) await selectBusiness(activeId); }}
-          setError={setError}
-        />
-      </main>
+          <div className="spacer" />
+
+          <label className="switcher">
+            <Icon name="building" className="icon" />
+            <select value={activeId ?? ""} onChange={(e) => selectBusiness(e.target.value)}>
+              {businesses.length === 0 && <option value="">No businesses</option>}
+              {businesses.map((b) => (
+                <option key={b.id} value={b.id}>{b.name} · {b.businessTypeCode}</option>
+              ))}
+            </select>
+          </label>
+
+          <div className="user">
+            <div className="avatar">{initials(user.fullName)}</div>
+            <div className="user__meta">
+              <div className="user__name">{user.fullName}</div>
+              <div className="user__role">{user.isSuperAdmin ? "Super Admin" : "Business User"}</div>
+            </div>
+            <button className="iconbtn" onClick={onLogout} title="Log out" aria-label="Log out">
+              <Icon name="logout" />
+            </button>
+          </div>
+        </header>
+
+        {error && <div className="banner"><Icon name="shield" />{error}</div>}
+
+        <main className="content">
+          <DashboardPanel summary={summary} businessName={active?.name ?? ""} />
+
+          <div className="cols">
+            <BusinessesPanel
+              businesses={businesses}
+              types={types}
+              onCreated={async (id) => { await loadBusinesses(false); await selectBusiness(id); }}
+              setError={setError}
+            />
+            <MembersPanel
+              active={active}
+              members={members}
+              roles={roles}
+              onInvited={async () => { if (activeId) await selectBusiness(activeId); }}
+              setError={setError}
+            />
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
 
-function DashboardPanel({ summary, businessName }: { summary: DashboardSummary; businessName: string }) {
-  const kpis: { label: string; value: number; accent?: boolean }[] = [
-    { label: "Today Income", value: summary.todayIncome },
-    { label: "Today Expense", value: summary.todayExpense },
-    { label: "Month Income", value: summary.monthIncome },
-    { label: "Month Expense", value: summary.monthExpense },
-    { label: "Total Profit", value: summary.totalProfit, accent: true },
-    { label: "Pending Credits", value: summary.pendingCredits },
-    { label: "Pending Collections", value: summary.pendingCollections },
+/* -------------------------------------------------------------------------- */
+/* Dashboard                                                                  */
+/* -------------------------------------------------------------------------- */
+type Tone = "pos" | "neg" | "warn" | "info";
+function DashboardPanel({ summary, businessName }: { summary: DashboardSummary | null; businessName: string }) {
+  const kpis: { label: string; value: number; tone: Tone; icon: string; featured?: boolean }[] = [
+    { label: "Today Income", value: summary?.todayIncome ?? 0, tone: "pos", icon: "up" },
+    { label: "Today Expense", value: summary?.todayExpense ?? 0, tone: "neg", icon: "down" },
+    { label: "Month Income", value: summary?.monthIncome ?? 0, tone: "pos", icon: "up" },
+    { label: "Month Expense", value: summary?.monthExpense ?? 0, tone: "neg", icon: "down" },
+    { label: "Total Profit", value: summary?.totalProfit ?? 0, tone: "info", icon: "wallet", featured: true },
+    { label: "Pending Credits", value: summary?.pendingCredits ?? 0, tone: "warn", icon: "card" },
+    { label: "Pending Collections", value: summary?.pendingCollections ?? 0, tone: "warn", icon: "clock" },
   ];
+
   return (
-    <section style={{ ...styles.panel, margin: "20px 20px 0" }}>
-      <h2 style={styles.h2}>Dashboard · {businessName}</h2>
-      <div style={styles.kpiRow}>
+    <section id="dashboard">
+      <div className="section__head">
+        <div className="section__title"><Icon name="dashboard" />Dashboard</div>
+        <div className="section__sub">
+          {businessName ? `Financial overview for ${businessName}` : "Select a business to view its overview"}
+        </div>
+      </div>
+
+      <div className="kpis">
         {kpis.map((k) => (
-          <div key={k.label} style={{ ...styles.kpi, ...(k.accent ? styles.kpiAccent : {}) }}>
-            <div style={styles.kpiLabel}>{k.label}</div>
-            <div style={styles.kpiValue}>{inr(k.value)}</div>
+          <div key={k.label} className={`kpi t-${k.tone}${k.featured ? " is-featured" : ""}`}>
+            <div className="kpi__top">
+              <div className="kpi__icon"><Icon name={k.icon} /></div>
+              {k.featured && <span className="kpi__delta">Net</span>}
+            </div>
+            <div className="kpi__label">{k.label}</div>
+            <div className="kpi__value">{inr(k.value)}</div>
           </div>
         ))}
       </div>
@@ -163,6 +312,9 @@ function DashboardPanel({ summary, businessName }: { summary: DashboardSummary; 
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Businesses                                                                 */
+/* -------------------------------------------------------------------------- */
 function BusinessesPanel({ businesses, types, onCreated, setError }: {
   businesses: BusinessDto[];
   types: RefItem[];
@@ -191,29 +343,49 @@ function BusinessesPanel({ businesses, types, onCreated, setError }: {
   }
 
   return (
-    <section style={styles.panel}>
-      <h2 style={styles.h2}>Businesses</h2>
-      <ul style={styles.list}>
-        {businesses.map((b) => (
-          <li key={b.id} style={styles.listItem}>
-            <strong>{b.name}</strong> · {b.businessTypeName}
-            <div style={styles.hint}>role {b.role ?? "—"} · {b.isActive ? "active" : "inactive"}</div>
-          </li>
-        ))}
-        {businesses.length === 0 && <p style={styles.hint}>No businesses yet.</p>}
-      </ul>
-      <form onSubmit={create} style={styles.formRow}>
-        <input style={styles.input} placeholder="New business name" value={name}
-               onChange={(e) => setName(e.target.value)} required />
-        <select style={styles.select} value={typeCode} onChange={(e) => setTypeCode(e.target.value)}>
-          {types.map((t) => <option key={t.id} value={t.code}>{t.name}</option>)}
-        </select>
-        <button style={styles.button} disabled={busy || !name}>Create</button>
-      </form>
+    <section id="businesses" className="card">
+      <div className="card__head">
+        <Icon name="building" />
+        <span className="card__title">Businesses</span>
+        <span className="count">{businesses.length}</span>
+      </div>
+      <div className="card__body">
+        <div className="rows">
+          {businesses.map((b) => (
+            <div key={b.id} className="row">
+              <div className="avatar--sq avatar--brand">{initials(b.name)}</div>
+              <div className="row__main">
+                <div className="row__title">{b.name}</div>
+                <div className="row__sub">{b.businessTypeName}</div>
+              </div>
+              <span className={`badge ${b.role === "OWNER" ? "badge--owner" : ""}`}>{b.role ?? "—"}</span>
+              <span className={`badge ${b.isActive ? "badge--ok" : "badge--off"}`}>{b.isActive ? "Active" : "Inactive"}</span>
+            </div>
+          ))}
+          {businesses.length === 0 && <div className="empty">No businesses yet.</div>}
+        </div>
+
+        <div className="form__divider">Add a business</div>
+        <form onSubmit={create} className="form form--inline">
+          <div className="field" style={{ minWidth: 180 }}>
+            <input className="input" placeholder="New business name" value={name}
+                   onChange={(e) => setName(e.target.value)} required />
+          </div>
+          <div className="field" style={{ flex: "0 0 auto", minWidth: 150 }}>
+            <select className="select" value={typeCode} onChange={(e) => setTypeCode(e.target.value)}>
+              {types.map((t) => <option key={t.id} value={t.code}>{t.name}</option>)}
+            </select>
+          </div>
+          <button className="btn" disabled={busy || !name}><Icon name="plus" />Create</button>
+        </form>
+      </div>
     </section>
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Members                                                                    */
+/* -------------------------------------------------------------------------- */
 function MembersPanel({ active, members, roles, onInvited, setError }: {
   active: BusinessDto | null;
   members: MemberDto[];
@@ -248,60 +420,62 @@ function MembersPanel({ active, members, roles, onInvited, setError }: {
     }
   }
 
-  if (!active) return <section style={styles.panel}><h2 style={styles.h2}>Members</h2><p style={styles.hint}>Select a business.</p></section>;
+  if (!active) {
+    return (
+      <section id="members" className="card">
+        <div className="card__head"><Icon name="users" /><span className="card__title">Members</span></div>
+        <div className="card__body"><div className="empty">Select a business to manage members.</div></div>
+      </section>
+    );
+  }
 
   return (
-    <section style={styles.panel}>
-      <h2 style={styles.h2}>Members · {active.name}</h2>
-      <ul style={styles.list}>
-        {members.map((m) => (
-          <li key={m.userId} style={styles.listItem}>
-            <strong>{m.fullName}</strong> · {m.mobile}
-            <div style={styles.hint}>{m.roleName}</div>
-          </li>
-        ))}
-        {members.length === 0 && <p style={styles.hint}>No members.</p>}
-      </ul>
-      <form onSubmit={invite} style={styles.formCol}>
-        <div style={styles.hint}>Invite a user to this business</div>
-        <input style={styles.input} placeholder="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-        <input style={styles.input} placeholder="Mobile" value={mobile} onChange={(e) => setMobile(e.target.value)} required />
-        <input style={styles.input} type="password" placeholder="Temp password (min 8)" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        <select style={styles.select} value={roleCode} onChange={(e) => setRoleCode(e.target.value)}>
-          {roles.map((r) => <option key={r.id} value={r.code}>{r.name}</option>)}
-        </select>
-        <button style={styles.button} disabled={busy}>Invite</button>
-      </form>
+    <section id="members" className="card">
+      <div className="card__head">
+        <Icon name="users" />
+        <span className="card__title">Members</span>
+        <span className="count">{members.length}</span>
+      </div>
+      <div className="card__body">
+        <div className="rows">
+          {members.map((m) => (
+            <div key={m.userId} className="row">
+              <div className="avatar--sq">{initials(m.fullName)}</div>
+              <div className="row__main">
+                <div className="row__title">{m.fullName}</div>
+                <div className="row__sub">{m.mobile}</div>
+              </div>
+              <span className={`badge ${m.roleCode === "OWNER" ? "badge--owner" : ""}`}>{m.roleName}</span>
+            </div>
+          ))}
+          {members.length === 0 && <div className="empty">No members yet.</div>}
+        </div>
+
+        <div className="form__divider">Invite a user</div>
+        <form onSubmit={invite} className="form">
+          <div className="field">
+            <label>Full name</label>
+            <input className="input" placeholder="e.g. Priya Kumar" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
+          </div>
+          <div className="form--inline">
+            <div className="field">
+              <label>Mobile</label>
+              <input className="input" placeholder="9000000000" value={mobile} onChange={(e) => setMobile(e.target.value)} required />
+            </div>
+            <div className="field">
+              <label>Temp password</label>
+              <input className="input" type="password" placeholder="Min 8 characters" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            </div>
+          </div>
+          <div className="field">
+            <label>Role</label>
+            <select className="select" value={roleCode} onChange={(e) => setRoleCode(e.target.value)}>
+              {roles.map((r) => <option key={r.id} value={r.code}>{r.name}</option>)}
+            </select>
+          </div>
+          <button className="btn btn--block" disabled={busy}><Icon name="plus" />Send invite</button>
+        </form>
+      </div>
     </section>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  page: { minHeight: "100vh", display: "grid", placeItems: "center", background: "#0f172a", fontFamily: "system-ui, sans-serif" },
-  card: { width: 360, background: "#fff", borderRadius: 12, padding: 28, boxShadow: "0 10px 30px rgba(0,0,0,.25)" },
-  title: { margin: 0, fontSize: 24 },
-  subtitle: { marginTop: 4, color: "#64748b", fontSize: 13 },
-  app: { minHeight: "100vh", background: "#f1f5f9", fontFamily: "system-ui, sans-serif" },
-  topbar: { display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", background: "#0f172a", color: "#fff" },
-  who: { fontSize: 13, color: "#cbd5e1" },
-  linkBtn: { background: "transparent", color: "#93c5fd", border: 0, cursor: "pointer", fontSize: 13 },
-  banner: { background: "#fee2e2", color: "#b91c1c", padding: "8px 20px", fontSize: 13 },
-  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 16, padding: 20 },
-  panel: { background: "#fff", borderRadius: 12, padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,.1)" },
-  h2: { marginTop: 0, fontSize: 18 },
-  label: { display: "block", marginTop: 14, marginBottom: 4, fontSize: 13, color: "#334155" },
-  input: { width: "100%", padding: "10px 12px", border: "1px solid #cbd5e1", borderRadius: 8, boxSizing: "border-box" },
-  select: { padding: "9px 10px", border: "1px solid #cbd5e1", borderRadius: 8, background: "#fff" },
-  button: { padding: "10px 14px", border: 0, borderRadius: 8, background: "#2563eb", color: "#fff", fontWeight: 600, cursor: "pointer" },
-  error: { color: "#dc2626", fontSize: 13, marginTop: 10 },
-  hint: { color: "#94a3b8", fontSize: 12, marginTop: 6 },
-  list: { listStyle: "none", padding: 0, margin: "8px 0 14px" },
-  listItem: { padding: "10px 0", borderBottom: "1px solid #e2e8f0" },
-  formRow: { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" },
-  formCol: { display: "flex", flexDirection: "column", gap: 8 },
-  kpiRow: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 },
-  kpi: { background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px 14px" },
-  kpiAccent: { background: "#eff6ff", borderColor: "#bfdbfe" },
-  kpiLabel: { fontSize: 12, color: "#64748b" },
-  kpiValue: { fontSize: 20, fontWeight: 700, marginTop: 4, color: "#0f172a" },
-};
