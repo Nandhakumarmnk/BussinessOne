@@ -2,7 +2,9 @@ import Constants from "expo-constants";
 import { useEffect, useState } from "react";
 import { SafeAreaView, StatusBar } from "react-native";
 import { createApi } from "./src/api";
-import { AddExpenseScreen, HomeScreen, LoginScreen, Splash } from "./src/screens";
+import {
+  AddExpenseScreen, CustomersScreen, HomeScreen, LoginScreen, NewLoadScreen, Splash,
+} from "./src/screens";
 import { session } from "./src/session";
 
 const baseUrl =
@@ -16,7 +18,7 @@ const api = createApi({
   getBusinessId: () => session.getBusinessId(),
 });
 
-type Screen = "loading" | "login" | "home" | "addExpense";
+type Screen = "loading" | "login" | "home" | "addExpense" | "customers" | "newLoad";
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("loading");
@@ -36,9 +38,17 @@ export default function App() {
       {screen === "loading" && <Splash />}
       {screen === "login" && <LoginScreen api={api} onLoggedIn={() => setScreen("home")} />}
       {screen === "home" && (
-        <HomeScreen api={api} onLogout={logout} onAddExpense={() => setScreen("addExpense")} />
+        <HomeScreen
+          api={api}
+          onLogout={logout}
+          onAddExpense={() => setScreen("addExpense")}
+          onCustomers={() => setScreen("customers")}
+          onNewLoad={() => setScreen("newLoad")}
+        />
       )}
-      {screen === "addExpense" && <AddExpenseScreen onDone={() => setScreen("home")} />}
+      {screen === "addExpense" && <AddExpenseScreen api={api} onDone={() => setScreen("home")} />}
+      {screen === "customers" && <CustomersScreen api={api} onBack={() => setScreen("home")} />}
+      {screen === "newLoad" && <NewLoadScreen onBack={() => setScreen("home")} />}
     </SafeAreaView>
   );
 }

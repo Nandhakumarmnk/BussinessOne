@@ -153,6 +153,54 @@ sudo chmod +x /etc/cron.daily/erp-backup
 **Rehearse the restore once before go-live** (see `erp-backup.sh` footer and
 [docs/12 §4](../../docs/12-hardening-and-runbook.md)).
 
+## 8b · File storage → Firebase Storage
+
+Attachments (expense bills, receipts captured on the mobile app) are stored in a **Firebase Storage
+bucket** — a Google Cloud Storage bucket managed by Firebase. The API uploads objects and hands
+clients **short-lived signed download URLs**, so the bucket stays private. Local disk (`STORAGE_PROVIDER=Local`)
+remains the default for dev/CI; production sets `STORAGE_PROVIDER=Firebase`.
+
+**One-time setup (in the existing GCP project, e.g. `business-one-40657`):**
+
+1. **Enable Storage.** Firebase console → **Build → Storage → Get started** (creates the default
+   bucket). Copy the exact bucket name shown — newer projects are `<project>.firebasestorage.app`,
+   older ones `<project>.appspot.com`. This is your `FIREBASE_BUCKET`.
+2. **Create a service account** with object read/write on that bucket:
+   ```bash
+   gcloud config set project business-one-40657
+   gcloud iam service-accounts create erp-storage --display-name="ERP file storage"
+   gcloud projects add-iam-policy-binding business-one-40657 \
+     --member="serviceAccount:erp-storage@business-one-40657.iam.gserviceaccount.com" \
+     --role="roles/storage.objectAdmin"
+   gcloud iam service-accounts keys create gcs-sa.json \
+     --iam-account=erp-storage@business-one-40657.iam.gserviceaccount.com
+   ```
+   > The key must be a **service-account** key: the API signs download URLs offline with its private
+   > key, so no extra `signBlob` IAM permission is needed and the VM never calls Google to sign.
+3. **Minify the key to one line** (the API reads it from an env var, so there's no file to mount and
+   the automated deploy has no file dependency):
+   ```bash
+   jq -c . gcs-sa.json          # copy this single-line output
+   ```
+4. **Set the env** in `infra/docker/.env` on the VM (see `.env.example`) — `.env` is gitignored:
+   ```
+   STORAGE_PROVIDER=Firebase
+   FIREBASE_BUCKET=business-one-40657.firebasestorage.app     # the exact name from step 1
+   FIREBASE_CREDENTIALS_JSON={"type":"service_account", ... }  # the one-line JSON from step 3
+   ```
+   Then bring the stack up as usual (`docker compose ... up -d`). Upload a bill from the web console
+   (Expenses → Attach) and confirm the object appears in Firebase console → Storage.
+
+> Prefer a mounted key file instead of inline JSON? Set `Storage__Firebase__CredentialsPath` to a path
+> and bind-mount the key there yourself — both are supported by `GcsFileStorage`.
+
+**Bucket CORS (optional).** The web console opens attachments via a top-level navigation
+(`window.open`), which needs no CORS. Only if a browser fetches an object via `fetch()`/XHR do you
+need CORS on the bucket. A ready config is in [`gcs-cors.json`](gcs-cors.json) — edit the origins, then:
+```bash
+gsutil cors set infra/docker/gcs-cors.json gs://business-one-40657.firebasestorage.app
+```
+
 ## 9 · Web SPA → Firebase Hosting
 
 ```bash

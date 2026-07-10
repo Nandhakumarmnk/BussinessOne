@@ -40,6 +40,12 @@ services:
       Cors__Origins__0: ${WEB_ORIGIN:?set WEB_ORIGIN in infra/docker/.env}
       # Expose Swagger UI in Production when SWAGGER_ENABLED=true (default off)
       Swagger__Enabled: ${SWAGGER_ENABLED:-false}
+      # File storage: Local (disk) or Firebase (Cloud Storage). See infra/docker/.env.example
+      # and DEPLOY.md §8b. The service-account key is passed inline (no file mount) so the
+      # automated deploy has no dependency on a file existing on the VM.
+      Storage__Provider: ${STORAGE_PROVIDER:-Local}
+      Storage__Firebase__Bucket: ${FIREBASE_BUCKET:-}
+      Storage__Firebase__CredentialsJson: ${FIREBASE_CREDENTIALS_JSON:-}
     ports:
       # Loopback only — lets the VM curl /health/ready; not reachable from the internet.
       - "127.0.0.1:8080:8080"

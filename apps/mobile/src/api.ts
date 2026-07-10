@@ -71,8 +71,37 @@ export function createApi(opts: ApiOptions) {
     return json?.data as T;
   }
 
+  /**
+   * Uploads a captured/selected file (multipart) to Firebase Storage via the API and returns its
+   * object key. Online-only — the offline outbox never queues binary bodies; a photo is uploaded
+   * when connected and its key is attached to the (possibly queued) record.
+   */
+  async function uploadFile(
+    uri: string, name: string, type: string, folder = "expenses"): Promise<{ objectKey: string }> {
+    const form = new FormData();
+    // React Native's FormData accepts a { uri, name, type } file part.
+    form.append("file", { uri, name, type } as unknown as Blob);
+
+    const headers: Record<string, string> = {};   // no Content-Type — RN sets the multipart boundary
+    const token = opts.getToken();
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const businessId = opts.getBusinessId();
+    if (businessId) headers["X-Business-Id"] = businessId;
+
+    const res = await fetch(`${opts.baseUrl}/files?folder=${encodeURIComponent(folder)}`, {
+      method: "POST", headers, body: form,
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new ApiError(res.status, json?.error?.code ?? "error",
+        json?.error?.message ?? `Upload failed (${res.status})`);
+    }
+    return json?.data as { objectKey: string };
+  }
+
   return {
     request,
+    uploadFile,
     login: (mobileOrEmail: string, password: string) =>
       request<LoginResponse>("POST", "/auth/login", { mobileOrEmail, password }),
     dashboard: () => request<DashboardSummary>("GET", "/dashboard/summary"),

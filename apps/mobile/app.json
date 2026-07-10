@@ -3,7 +3,7 @@
     "name": "Business One",
     "slug": "business-one",
     "scheme": "businessone",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "android": {
@@ -16,7 +16,7 @@
       "expo-notifications"
     ],
     "extra": {
-      "apiBaseUrl": "http://10.0.2.2:8080/api/v1"
+      "apiBaseUrl": "https://34-122-117-197.sslip.io/api/v1"
     }
   }
 }

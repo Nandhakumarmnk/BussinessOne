@@ -49,7 +49,14 @@ public static class DependencyInjection
         services.AddScoped<IJwtService, JwtService>();
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IDateTime, SystemDateTime>();
-        services.AddSingleton<IFileStorage, LocalFileStorage>();
+
+        // File storage: local disk for dev/tests (default), Firebase Storage (GCS) in production.
+        // Selection is lazy, so the 'Local' default keeps tests credential-free.
+        if (string.Equals(config["Storage:Provider"], "Firebase", StringComparison.OrdinalIgnoreCase))
+            services.AddSingleton<IFileStorage, GcsFileStorage>();
+        else
+            services.AddSingleton<IFileStorage, LocalFileStorage>();
+
         services.AddSingleton<IReportExporter, ReportExporter>();
 
         return services;

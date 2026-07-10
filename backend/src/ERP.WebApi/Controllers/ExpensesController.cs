@@ -25,6 +25,14 @@ public class ExpensesController : ApiControllerBase
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
         => FromResult(await Mediator.Send(new DeleteExpenseCommand(id), ct));
 
+    /// <summary>
+    /// Returns a time-limited download URL for the expense's attachment. Ownership is enforced through
+    /// the business query filter, so an expense in another business resolves as 404.
+    /// </summary>
+    [HttpGet("{id:guid}/attachment")]
+    public async Task<IActionResult> Attachment(Guid id, CancellationToken ct)
+        => FromResult(await Mediator.Send(new GetExpenseAttachmentUrlQuery(id), ct));
+
     [HttpGet("~/api/v1/reports/expenses")]
     public async Task<IActionResult> Report(
         [FromQuery] string period, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, CancellationToken ct)
