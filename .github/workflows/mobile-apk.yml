@@ -40,6 +40,20 @@ jobs:
       - name: Prebuild native Android project
         run: npx expo prebuild --platform android --no-install
 
+      - name: Ensure splash background color exists
+        # Expo prebuild emits res/drawable/splashscreen.xml referencing @color/splashscreen_background
+        # but doesn't generate the color when no splash is configured -> AAPT link error. Define it.
+        run: |
+          COLORS="android/app/src/main/res/values/colors.xml"
+          if [ -f "$COLORS" ]; then
+            grep -q "splashscreen_background" "$COLORS" || \
+              sed -i 's|</resources>|  <color name="splashscreen_background">#ffffff</color>\n</resources>|' "$COLORS"
+          else
+            mkdir -p "$(dirname "$COLORS")"
+            printf '<resources>\n  <color name="splashscreen_background">#ffffff</color>\n</resources>\n' > "$COLORS"
+          fi
+          echo "----- colors.xml -----"; cat "$COLORS"
+
       - name: Build APK (Gradle)
         working-directory: apps/mobile/android
         run: |
