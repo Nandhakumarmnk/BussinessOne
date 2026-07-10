@@ -27,4 +27,12 @@ public class LocalFileStorage : IFileStorage
 
         return key;
     }
+
+    /// <summary>
+    /// Local files are not publicly reachable, so we return a relative API path that the
+    /// authenticated <c>GET /api/v1/files/content</c> endpoint streams from disk. (We deliberately
+    /// do not enable static-file middleware, which would expose the whole root unauthenticated.)
+    /// </summary>
+    public Task<string> GetDownloadUrlAsync(string objectKey, CancellationToken ct = default)
+        => Task.FromResult($"/api/v1/files/content?key={Uri.EscapeDataString(objectKey)}");
 }

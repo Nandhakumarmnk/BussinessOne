@@ -1,47 +1,25 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, setAccessToken, setActiveBusiness } from "./api";
+import { api, setAccessToken, setActiveBusiness, setRefreshToken } from "./api";
 import type { BusinessDto, DashboardSummary, MemberDto, RefItem, UserSummary } from "./types";
-
-const inr = (n: number) =>
-  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
-
-const initials = (name: string) =>
-  name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
-
-/* -------------------------------------------------------------------------- */
-/* Icons (Lucide-style, inline so there is no runtime dependency)             */
-/* -------------------------------------------------------------------------- */
-const PATHS: Record<string, string> = {
-  dashboard: "M3 3h7v7H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 14h7v7H3z",
-  building: "M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18ZM9 6h.01M9 10h.01M9 14h.01M14 6h.01M14 10h.01M14 14h.01M9 22v-4h6v4",
-  users: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
-  up: "M16 7h6v6M22 7l-8.5 8.5-5-5L2 17",
-  down: "M16 17h6v-6M22 17l-8.5-8.5-5 5L2 7",
-  wallet: "M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2M16 12h.01M21 9v6h-5a3 3 0 0 1 0-6Z",
-  clock: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM12 6v6l4 2",
-  card: "M2 7a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2zM2 10h20",
-  logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
-  plus: "M12 5v14M5 12h14",
-  tick: "M20 6 9 17l-5-5",
-  shield: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z",
-  bolt: "M13 2 3 14h7l-1 8 10-12h-7l1-8Z",
-};
-
-function Icon({ name, className = "icon" }: { name: string; className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-         strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d={PATHS[name]} />
-    </svg>
-  );
-}
+import { Icon, initials, inr } from "./ui";
+import { ExpensesScreen } from "./screens/Expenses";
+import { CustomersScreen } from "./screens/Customers";
+import { TransportScreen } from "./screens/Transport";
 
 export function App() {
   const [user, setUser] = useState<UserSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const logout = () => {
+    void api.logout();               // best-effort refresh-token revoke
+    setAccessToken(null);
+    setRefreshToken(null);
+    setActiveBusiness(null);
+    setUser(null);
+  };
+
   if (!user) return <Login onAuthed={setUser} setError={setError} error={error} />;
-  return <Console user={user} onLogout={() => { setAccessToken(null); setActiveBusiness(null); setUser(null); }} />;
+  return <Console user={user} onLogout={logout} />;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -63,6 +41,7 @@ function Login({ onAuthed, setError, error }: {
     try {
       const res = await api.login(mobileOrEmail, password);
       setAccessToken(res.accessToken);
+      setRefreshToken(res.refreshToken);
       onAuthed(res.user);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
@@ -175,16 +154,34 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
 
   const active = businesses.find((b) => b.id === activeId) ?? null;
 
-  const goto = (id: string) => {
-    setNav(id);
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
+  const isTransport = active?.businessTypeCode === "TRANSPORT";
 
-  const navItems = [
+  // Fall back to the dashboard if the active business can't show the current module
+  // (e.g. the user switched away from a Transport business while on the Transport tab).
+  useEffect(() => {
+    if (nav === "transport" && !isTransport) setNav("dashboard");
+  }, [nav, isTransport]);
+
+  const workspaceNav = [
     { id: "dashboard", label: "Dashboard", icon: "dashboard" },
     { id: "businesses", label: "Businesses", icon: "building" },
     { id: "members", label: "Members", icon: "users" },
   ];
+  const operationsNav = [
+    { id: "expenses", label: "Expenses", icon: "receipt" },
+    { id: "customers", label: "Customers", icon: "contact" },
+    ...(isTransport ? [{ id: "transport", label: "Transport", icon: "truck" }] : []),
+  ];
+  const activeLabel =
+    [...workspaceNav, ...operationsNav].find((i) => i.id === nav)?.label ?? "Workspace";
+
+  const NavItem = ({ id, label, icon }: { id: string; label: string; icon: string }) => (
+    <div className={`nav__item${nav === id ? " is-active" : ""}`} onClick={() => setNav(id)}>
+      <Icon name={icon} />{label}
+    </div>
+  );
+
+  const needsBusiness = nav === "expenses" || nav === "customers" || nav === "transport";
 
   return (
     <div className="layout">
@@ -199,19 +196,13 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
 
         <nav className="nav">
           <div className="nav__label">Workspace</div>
-          {navItems.map((item) => (
-            <div
-              key={item.id}
-              className={`nav__item${nav === item.id ? " is-active" : ""}`}
-              onClick={() => goto(item.id)}
-            >
-              <Icon name={item.icon} />{item.label}
-            </div>
-          ))}
+          {workspaceNav.map((item) => <NavItem key={item.id} {...item} />)}
+          <div className="nav__label">Operations</div>
+          {operationsNav.map((item) => <NavItem key={item.id} {...item} />)}
         </nav>
 
         <div className="sidebar__foot">
-          <b>Phase 1</b> · Demo console<br />v0.1.0
+          <b>Console</b> · Multi-business ERP<br />v0.2
         </div>
       </aside>
 
@@ -219,7 +210,9 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
         <header className="topbar">
           <div>
             <div className="topbar__title">{active ? active.name : "Workspace"}</div>
-            <div className="topbar__crumb">{active ? `${active.businessTypeName} · Overview` : "No business selected"}</div>
+            <div className="topbar__crumb">
+              {active ? `${active.businessTypeName} · ${activeLabel}` : "No business selected"}
+            </div>
           </div>
 
           <div className="spacer" />
@@ -249,15 +242,24 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
         {error && <div className="banner"><Icon name="shield" />{error}</div>}
 
         <main className="content">
-          <DashboardPanel summary={summary} businessName={active?.name ?? ""} />
+          {needsBusiness && !activeId && (
+            <div className="card"><div className="card__body">
+              <div className="empty">Select or create a business to use this module.</div>
+            </div></div>
+          )}
 
-          <div className="cols">
+          {nav === "dashboard" && <DashboardPanel summary={summary} businessName={active?.name ?? ""} />}
+
+          {nav === "businesses" && (
             <BusinessesPanel
               businesses={businesses}
               types={types}
               onCreated={async (id) => { await loadBusinesses(false); await selectBusiness(id); }}
               setError={setError}
             />
+          )}
+
+          {nav === "members" && (
             <MembersPanel
               active={active}
               members={members}
@@ -265,7 +267,11 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
               onInvited={async () => { if (activeId) await selectBusiness(activeId); }}
               setError={setError}
             />
-          </div>
+          )}
+
+          {nav === "expenses" && activeId && <ExpensesScreen key={activeId} setError={setError} />}
+          {nav === "customers" && activeId && <CustomersScreen key={activeId} setError={setError} />}
+          {nav === "transport" && activeId && <TransportScreen key={activeId} setError={setError} />}
         </main>
       </div>
     </div>

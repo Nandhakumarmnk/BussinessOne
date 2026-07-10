@@ -322,6 +322,12 @@ not yet exercised against live PostgreSQL/HTTP in this environment.
 | `Database:AutoMigrate` | appsettings / env | `true` in Development |
 | `Jwt:SigningKey` | appsettings.Development.json / env `Jwt__SigningKey` | dev key (≥32 chars) |
 | `Cors:Origins` | appsettings / env | `http://localhost:5173` |
+| `Storage:Provider` | appsettings / env `Storage__Provider` | `Local` (dev) · `Firebase` (prod) |
+| `Storage:Firebase:Bucket` | env `Storage__Firebase__Bucket` | — (e.g. `business-one-40657.firebasestorage.app`) |
+| `GOOGLE_APPLICATION_CREDENTIALS` | env | — (path to the service-account key, prod only) |
+
+> **File storage:** `Local` writes under `Files:Root` for dev/CI; `Firebase` uploads to a Cloud
+> Storage bucket and serves short-lived signed URLs. Setup: `infra/docker/DEPLOY.md` §8b.
 
 > **Production:** never use the dev signing key. Provide `Jwt__SigningKey` (≥32 chars) and the
 > connection string via environment / GCP Secret Manager. See [docs/01](docs/01-solution-architecture.md).

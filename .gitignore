@@ -27,6 +27,10 @@ build/
 appsettings.*.local.json
 *.pfx
 secrets.json
+# Firebase / GCP service-account keys — NEVER commit
+gcs-sa.json
+*-service-account*.json
+**/serviceAccountKey*.json
 
 # ---- OS / editor ----
 .DS_Store

@@ -29,6 +29,11 @@ public record UpdateExpenseCommand(
 [HasPermission(Permissions.Expense.Manage)]
 public record DeleteExpenseCommand(Guid Id) : IRequest<Result>;
 
+public record AttachmentUrlDto(string Url);
+
+[HasPermission(Permissions.Expense.Manage)]
+public record GetExpenseAttachmentUrlQuery(Guid ExpenseId) : IRequest<Result<AttachmentUrlDto>>;
+
 public class CreateExpenseCommandValidator : AbstractValidator<CreateExpenseCommand>
 {
     public CreateExpenseCommandValidator() => RuleFor(x => x.Amount).GreaterThanOrEqualTo(0);
@@ -132,6 +137,36 @@ public class UpdateExpenseCommandHandler : IRequestHandler<UpdateExpenseCommand,
         return Result<ExpenseDto>.Ok(new ExpenseDto(
             expense.Id, expense.ExpenseTypeId, null, expense.ExpenseDate, expense.Amount,
             expense.Description, expense.AttachmentKey));
+    }
+}
+
+public class GetExpenseAttachmentUrlQueryHandler
+    : IRequestHandler<GetExpenseAttachmentUrlQuery, Result<AttachmentUrlDto>>
+{
+    private readonly IRepository<Expense> _expenses;
+    private readonly IFileStorage _storage;
+
+    public GetExpenseAttachmentUrlQueryHandler(IRepository<Expense> expenses, IFileStorage storage)
+    {
+        _expenses = expenses;
+        _storage = storage;
+    }
+
+    public async Task<Result<AttachmentUrlDto>> Handle(GetExpenseAttachmentUrlQuery request, CancellationToken ct)
+    {
+        // Query() honours the business global query filter, so a caller can only resolve attachments
+        // for expenses in their active business. (GetByIdAsync uses FindAsync, which bypasses the
+        // filter — deliberately not used here, else keys could be read across businesses.)
+        var key = await _expenses.Query()
+            .Where(e => e.Id == request.ExpenseId)
+            .Select(e => e.AttachmentKey)
+            .FirstOrDefaultAsync(ct);
+
+        if (string.IsNullOrEmpty(key))
+            return Result<AttachmentUrlDto>.Fail("resource.not_found", "Attachment not found.");
+
+        var url = await _storage.GetDownloadUrlAsync(key, ct);
+        return Result<AttachmentUrlDto>.Ok(new AttachmentUrlDto(url));
     }
 }
 
