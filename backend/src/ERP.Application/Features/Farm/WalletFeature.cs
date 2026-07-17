@@ -88,7 +88,9 @@ public class AddWalletMoneyCommandHandler : IRequestHandler<AddWalletMoneyComman
         var businessId = AccessGuard.RequireBusiness(_currentUser);
         var wallet = await WalletOps.GetOrCreateAsync(_uow, businessId, ct);
         wallet.Credit(request.Amount);
-        _uow.Repository<Wallet>().Update(wallet);
+        // NB: no explicit Update() — the wallet is change-tracked (Added when new, tracked via
+        // FindAsync when it exists). Calling Update() would flip a freshly-Added wallet to Modified,
+        // so EF would emit an UPDATE for a row that was never inserted and the transaction's FK fails.
 
         await _uow.Repository<WalletTransaction>().AddAsync(new WalletTransaction
         {
@@ -125,7 +127,8 @@ public class UseWalletMoneyCommandHandler : IRequestHandler<UseWalletMoneyComman
         if (!wallet.Debit(request.Amount))
             return Result<WalletDto>.Fail("farm.wallet_insufficient", "Insufficient wallet balance.");
 
-        _uow.Repository<Wallet>().Update(wallet);
+        // See AddWalletMoneyCommandHandler: the wallet is tracked, so no explicit Update() is needed
+        // (and Update() on a newly-created wallet would break the insert).
         await _uow.Repository<WalletTransaction>().AddAsync(new WalletTransaction
         {
             BusinessId = businessId,

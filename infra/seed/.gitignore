@@ -1,0 +1,3 @@
+# Machine-specific CA trust-store dump used only to let Node trust an intercepting
+# corporate proxy when seeding an HTTPS endpoint. Never commit it.
+*.pem
