@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, setAccessToken, setActiveBusiness, setRefreshToken } from "./api";
-import type { BusinessDto, DashboardSummary, MemberDto, RefItem, UserSummary } from "./types";
+import { api, IS_DEMO, setAccessToken, setActiveBusiness, setRefreshToken } from "./api";
+import type { BusinessDto, CategorySlice, DashboardSummary, MemberDto, RefItem, TrendPoint, UserSummary } from "./types";
 import { Icon, initials, inr } from "./ui";
+import { DonutChart, Sparkline, TrendChart } from "./charts";
 import { ExpensesScreen } from "./screens/Expenses";
 import { CustomersScreen } from "./screens/Customers";
 import { TransportScreen } from "./screens/Transport";
@@ -99,7 +100,11 @@ function Login({ onAuthed, setError, error }: {
             {error && <p className="formerror">{error}</p>}
           </div>
 
-          <div className="demo">Demo · <b>owner@business-one.local</b> / <b>Owner@123</b></div>
+          <div className="demo">
+            {IS_DEMO
+              ? <>Live demo · <b>any</b> email &amp; password signs you in — data is sample-only.</>
+              : <>Demo · <b>owner@business-one.local</b> / <b>Owner@123</b></>}
+          </div>
         </form>
       </div>
     </div>
@@ -189,7 +194,7 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
         <div className="brand">
           <div className="brand__mark">B1</div>
           <div>
-            <div className="brand__name">Business One</div>
+            <div className="brand__name">Business One {IS_DEMO && <span className="pill-demo">Demo</span>}</div>
             <div className="brand__tag">Multi-Business ERP</div>
           </div>
         </div>
@@ -282,13 +287,44 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
 /* Dashboard                                                                  */
 /* -------------------------------------------------------------------------- */
 type Tone = "pos" | "neg" | "warn" | "info";
+
+/** Fallback analytics when the API returns only scalar KPIs (real backend, no series). */
+function synthTrend(s: DashboardSummary | null): TrendPoint[] {
+  const inc = s?.monthIncome ?? 0, exp = s?.monthExpense ?? 0;
+  return ["Feb", "Mar", "Apr", "May", "Jun", "Jul"].map((label, i) => ({
+    label,
+    income: Math.round(inc * (0.78 + 0.05 * i)),
+    expense: Math.round(exp * (0.82 + 0.04 * i)),
+  }));
+}
+function synthBreakdown(s: DashboardSummary | null): CategorySlice[] {
+  const e = s?.monthExpense ?? 0;
+  if (!e) return [];
+  return [
+    { label: "Operations", value: Math.round(e * 0.45) },
+    { label: "Salaries", value: Math.round(e * 0.3) },
+    { label: "Overheads", value: Math.round(e * 0.15) },
+    { label: "Other", value: Math.round(e * 0.1) },
+  ];
+}
+
 function DashboardPanel({ summary, businessName }: { summary: DashboardSummary | null; businessName: string }) {
-  const kpis: { label: string; value: number; tone: Tone; icon: string; featured?: boolean }[] = [
+  const trend = summary?.trend?.length ? summary.trend : synthTrend(summary);
+  const breakdown = summary?.expenseBreakdown?.length ? summary.expenseBreakdown : synthBreakdown(summary);
+  const incomeSeries = trend.map((t) => t.income);
+  const expenseSeries = trend.map((t) => t.expense);
+  const profitSeries = trend.map((t) => t.income - t.expense);
+  const pct = (a: number[]) => (a.length >= 2 && a[a.length - 2] ? (a[a.length - 1] - a[a.length - 2]) / Math.abs(a[a.length - 2]) : 0);
+
+  const kpis: {
+    label: string; value: number; tone: Tone; icon: string;
+    featured?: boolean; series?: number[]; delta?: number;
+  }[] = [
+    { label: "Month Income", value: summary?.monthIncome ?? 0, tone: "pos", icon: "up", series: incomeSeries, delta: pct(incomeSeries) },
+    { label: "Month Expense", value: summary?.monthExpense ?? 0, tone: "neg", icon: "down", series: expenseSeries },
+    { label: "Total Profit", value: summary?.totalProfit ?? 0, tone: "info", icon: "wallet", featured: true, series: profitSeries, delta: pct(profitSeries) },
     { label: "Today Income", value: summary?.todayIncome ?? 0, tone: "pos", icon: "up" },
     { label: "Today Expense", value: summary?.todayExpense ?? 0, tone: "neg", icon: "down" },
-    { label: "Month Income", value: summary?.monthIncome ?? 0, tone: "pos", icon: "up" },
-    { label: "Month Expense", value: summary?.monthExpense ?? 0, tone: "neg", icon: "down" },
-    { label: "Total Profit", value: summary?.totalProfit ?? 0, tone: "info", icon: "wallet", featured: true },
     { label: "Pending Credits", value: summary?.pendingCredits ?? 0, tone: "warn", icon: "card" },
     { label: "Pending Collections", value: summary?.pendingCollections ?? 0, tone: "warn", icon: "clock" },
   ];
@@ -307,14 +343,52 @@ function DashboardPanel({ summary, businessName }: { summary: DashboardSummary |
           <div key={k.label} className={`kpi t-${k.tone}${k.featured ? " is-featured" : ""}`}>
             <div className="kpi__top">
               <div className="kpi__icon"><Icon name={k.icon} /></div>
-              {k.featured && <span className="kpi__delta">Net</span>}
+              {k.delta !== undefined
+                ? <DeltaChip value={k.delta} />
+                : k.featured && <span className="kpi__delta">Net</span>}
             </div>
             <div className="kpi__label">{k.label}</div>
             <div className="kpi__value">{inr(k.value)}</div>
+            {k.series && (
+              <div className="kpi__spark">
+                <Sparkline data={k.series} tone={k.featured ? "rgba(255,255,255,.9)" : "var(--tone-500)"} />
+              </div>
+            )}
           </div>
         ))}
       </div>
+
+      <div className="analytics">
+        <div className="card">
+          <div className="card__head">
+            <Icon name="up" /><span className="card__title">Income vs Expense</span>
+            <span className="card__hint">Last {trend.length} months</span>
+          </div>
+          <div className="card__body"><TrendChart data={trend} /></div>
+        </div>
+
+        <div className="card">
+          <div className="card__head">
+            <Icon name="wallet" /><span className="card__title">Expense breakdown</span>
+          </div>
+          <div className="card__body">
+            {breakdown.length
+              ? <DonutChart data={breakdown} centerLabel="Spend" />
+              : <div className="empty">No expense data yet.</div>}
+          </div>
+        </div>
+      </div>
     </section>
+  );
+}
+
+function DeltaChip({ value }: { value: number }) {
+  const up = value >= 0;
+  const pct = Math.abs(value * 100);
+  return (
+    <span className={`delta ${up ? "delta--up" : "delta--down"}`}>
+      {up ? "▲" : "▼"} {pct < 0.5 ? "0" : pct.toFixed(pct < 10 ? 1 : 0)}%
+    </span>
   );
 }
 

@@ -1,0 +1,67 @@
+name: Pages (web demo)
+
+# Builds the web SPA in demo mode (in-memory sample data, no backend) and publishes
+# it to GitHub Pages. Live at https://<owner>.github.io/BussinessOne/ after the repo's
+# Settings → Pages → "Build and deployment" source is set to "GitHub Actions" (one-time).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "packages/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build demo SPA
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Enable pnpm
+        run: corepack enable pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile || pnpm install
+
+      - name: Build web (demo mode)
+        run: pnpm --filter @erp/web build
+        env:
+          VITE_DEMO: "true"
+          VITE_BASE: "/BussinessOne/"
+
+      - name: SPA fallback + disable Jekyll
+        run: |
+          cp apps/web/dist/index.html apps/web/dist/404.html
+          touch apps/web/dist/.nojekyll
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/web/dist
+
+  deploy:
+    name: Deploy to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

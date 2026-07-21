@@ -55,6 +55,17 @@ export interface RefItem {
   name: string;
 }
 
+export interface TrendPoint {
+  label: string;
+  income: number;
+  expense: number;
+}
+
+export interface CategorySlice {
+  label: string;
+  value: number;
+}
+
 export interface DashboardSummary {
   todayIncome: number;
   todayExpense: number;
@@ -63,6 +74,9 @@ export interface DashboardSummary {
   totalProfit: number;
   pendingCredits: number;
   pendingCollections: number;
+  /** Optional analytics used by the dashboard charts (populated by the demo backend). */
+  trend?: TrendPoint[];
+  expenseBreakdown?: CategorySlice[];
 }
 
 export interface ApiEnvelope<T> {

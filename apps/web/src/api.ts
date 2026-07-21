@@ -5,6 +5,11 @@ import type {
   ApiEnvelope, BusinessDto, CreditDto, CustomerDto, DashboardSummary, DriverDto, ExpenseDto,
   LedgerEntryDto, LoadDto, LoginResponse, MeResponse, MemberDto, RefItem, VehicleDto,
 } from "./types";
+import { demoApi } from "./demo";
+
+/** When built with VITE_DEMO=true (e.g. the GitHub Pages demo) the app runs entirely
+ *  on in-memory sample data with no backend. */
+export const IS_DEMO = import.meta.env.VITE_DEMO === "true";
 
 const BASE = "/api/v1";
 
@@ -136,7 +141,7 @@ export interface CreateLoadInput {
   otherExpense: number;
 }
 
-export const api = {
+const liveApi = {
   // ---- Auth ----
   login: (mobileOrEmail: string, password: string) =>
     request<LoginResponse>("/auth/login", {
@@ -225,3 +230,6 @@ export const api = {
     return URL.createObjectURL(await res.blob());
   },
 };
+
+/** The active client: the in-memory demo backend when VITE_DEMO=true, else the real HTTP client. */
+export const api: typeof liveApi = IS_DEMO ? (demoApi as unknown as typeof liveApi) : liveApi;

@@ -465,8 +465,61 @@ a { color: inherit; text-decoration: none; }
 .tab.is-active .count { background: rgba(255, 255, 255, .2); color: #fff; }
 
 /* ==========================================================================
+   Dashboard analytics (charts)
+   ========================================================================== */
+.analytics {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 22px;
+}
+.card__hint { margin-left: auto; font-size: 11.5px; color: var(--faint); font-weight: 600; }
+
+/* KPI sparkline + delta chip */
+.kpi__spark { margin-top: 12px; height: 34px; }
+.kpi__spark .spark { display: block; width: 100%; height: 34px; }
+.delta {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 11px; font-weight: 700; letter-spacing: .01em;
+  padding: 3px 8px; border-radius: 999px;
+}
+.delta--up   { color: var(--pos-700); background: var(--pos-50); }
+.delta--down { color: var(--neg-700); background: var(--neg-50); }
+.kpi.is-featured .delta { color: #fff; background: rgba(255, 255, 255, .2); }
+
+/* Trend chart */
+.chart { width: 100%; }
+.chart svg { display: block; }
+.chart__axis { fill: var(--faint); font-size: 10.5px; font-weight: 600; }
+.chart__legend { display: flex; gap: 18px; justify-content: flex-end; margin-top: 6px; }
+.chart__key { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: var(--text-soft); }
+.dotmark { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+
+/* Donut chart */
+.donut { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.donut__svg { width: 168px; height: 168px; flex: none; }
+.donut__total { fill: var(--ink-900); font-size: 22px; font-weight: 800; }
+.donut__caption { fill: var(--muted); font-size: 11px; font-weight: 600; }
+.donut__legend { flex: 1; min-width: 150px; display: flex; flex-direction: column; gap: 9px; }
+.donut__item { display: flex; align-items: center; gap: 9px; font-size: 13px; }
+.donut__item .dotmark { border-radius: 50%; }
+.donut__name { color: var(--text); font-weight: 500; }
+.donut__pct { margin-left: auto; color: var(--muted); font-weight: 700; }
+
+/* Demo pill (brand) */
+.pill-demo {
+  display: inline-block; vertical-align: middle; margin-left: 6px;
+  font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 5px;
+  color: #7cf6c0; background: rgba(16, 185, 129, .18);
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, .3);
+}
+
+/* ==========================================================================
    Responsive
    ========================================================================== */
+@media (max-width: 1080px) {
+  .analytics { grid-template-columns: 1fr; }
+}
 @media (max-width: 960px) {
   .layout { grid-template-columns: 1fr; }
   .sidebar { position: static; height: auto; flex-direction: row; align-items: center; }
