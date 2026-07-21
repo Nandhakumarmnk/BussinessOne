@@ -93,7 +93,15 @@ export function ExpensesScreen({ setError }: { setError: (e: string | null) => v
           </div>
           <div className="card__body">
             <div className="rows">
-              {loading && <div className="empty">Loading…</div>}
+              {loading && Array.from({ length: 4 }).map((_, i) => (
+                <div key={`sk-${i}`} className="row">
+                  <div className="row__main">
+                    <div className="skeleton skeleton--line" />
+                    <div className="skeleton skeleton--line skeleton--sm" />
+                  </div>
+                  <div className="skeleton skeleton--pill" />
+                </div>
+              ))}
               {!loading && expenses.map((x) => (
                 <div key={x.id} className="row">
                   <div className="row__main">

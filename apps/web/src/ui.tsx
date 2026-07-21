@@ -30,6 +30,7 @@ const PATHS: Record<string, string> = {
   paperclip: "M21 8.5 12.5 17a4 4 0 0 1-6-6l8.5-8.5a2.5 2.5 0 0 1 3.5 3.5L10 14.5a1 1 0 0 1-1.5-1.5l7-7",
   trash: "M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6",
   contact: "M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M20 8v6M23 11h-6",
+  close: "M18 6 6 18M6 6l12 12",
 };
 
 export function Icon({ name, className = "icon" }: { name: string; className?: string }) {

@@ -90,7 +90,16 @@ export function CustomersScreen({ setError }: { setError: (e: string | null) => 
           </div>
           <div className="card__body">
             <div className="rows">
-              {loading && <div className="empty">Loading…</div>}
+              {loading && Array.from({ length: 4 }).map((_, i) => (
+                <div key={`sk-${i}`} className="row">
+                  <div className="skeleton skeleton--avatar" />
+                  <div className="row__main">
+                    <div className="skeleton skeleton--line" />
+                    <div className="skeleton skeleton--line skeleton--sm" />
+                  </div>
+                  <div className="skeleton skeleton--pill" />
+                </div>
+              ))}
               {!loading && customers.map((c) => (
                 <div key={c.id} className="row" style={{ cursor: "pointer" }} onClick={() => openLedger(c)}>
                   <div className="avatar--sq">{initials(c.name)}</div>

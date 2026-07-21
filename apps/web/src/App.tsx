@@ -167,6 +167,13 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
     if (nav === "transport" && !isTransport) setNav("dashboard");
   }, [nav, isTransport]);
 
+  // Auto-dismiss the error toast after a few seconds.
+  useEffect(() => {
+    if (!error) return;
+    const t = setTimeout(() => setError(null), 5000);
+    return () => clearTimeout(t);
+  }, [error]);
+
   const workspaceNav = [
     { id: "dashboard", label: "Dashboard", icon: "dashboard" },
     { id: "businesses", label: "Businesses", icon: "building" },
@@ -244,7 +251,15 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
           </div>
         </header>
 
-        {error && <div className="banner"><Icon name="shield" />{error}</div>}
+        {error && (
+          <div className="toast" role="alert">
+            <span className="toast__icon"><Icon name="shield" /></span>
+            <span className="toast__msg">{error}</span>
+            <button className="toast__x" onClick={() => setError(null)} aria-label="Dismiss">
+              <Icon name="close" />
+            </button>
+          </div>
+        )}
 
         <main className="content">
           {needsBusiness && !activeId && (
