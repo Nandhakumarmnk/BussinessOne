@@ -14,11 +14,11 @@ import type {
   InviteUserInput, RecordCollectionInput,
 } from "./api";
 import type {
-  BusinessDto, CoconutBatchDto, CoconutBatchPnlDto, CoconutProductDto, CreditDto, CustomerDto,
-  DashboardSummary, DriverDto, ExpenseDto, FarmBatchDto, FarmBatchPnlDto, FarmBatchSaleDto,
-  FeedDto, ItemDto, LedgerEntryDto, LoadDto, LoginResponse, MeResponse, MemberDto,
-  PurchaseOrderDto, RefItem, SaleDto, ServiceComplaintDto, SupplierDto, VehicleDto, WalletDto,
-  WalletTransactionDto,
+  AccountDto, BusinessDto, CashBookRowDto, CoconutBatchDto, CoconutBatchPnlDto, CoconutProductDto,
+  CreditDto, CustomerDto, DashboardSummary, DriverDto, ExpenseDto, FarmBatchDto, FarmBatchPnlDto,
+  FarmBatchSaleDto, FeedDto, ItemDto, JournalTxnDto, LedgerEntryDto, LedgerLineDto, LoadDto,
+  LoginResponse, MeResponse, MemberDto, ProfitLossDto, PurchaseOrderDto, RefItem, SaleDto,
+  ServiceComplaintDto, SupplierDto, VehicleDto, WalletDto, WalletTransactionDto,
 } from "./types";
 
 /* -- tiny helpers ---------------------------------------------------------- */
@@ -300,6 +300,30 @@ function coconutPnl(b: CoconutBatchDto): CoconutBatchPnlDto {
   };
 }
 
+/* -- Accounting ------------------------------------------------------------ */
+const accounts: AccountDto[] = [
+  { id: "ac-cash", code: "1000", name: "Cash", type: "Asset", isActive: true },
+  { id: "ac-bank", code: "1010", name: "Bank", type: "Asset", isActive: true },
+  { id: "ac-ar", code: "1100", name: "Accounts Receivable", type: "Asset", isActive: true },
+  { id: "ac-sales", code: "4000", name: "Sales", type: "Income", isActive: true },
+  { id: "ac-exp", code: "5000", name: "Operating Expenses", type: "Expense", isActive: true },
+];
+
+const journal: JournalTxnDto[] = [
+  { id: "jt-1", txnDate: "2026-07-16", sourceModule: "Transport", narration: "Load TR-2068 billed to Ramco", lines: [
+    { accountCode: "1100", accountName: "Accounts Receivable", debit: 92500, credit: 0 },
+    { accountCode: "4000", accountName: "Sales", debit: 0, credit: 92500 }] },
+  { id: "jt-2", txnDate: "2026-07-15", sourceModule: "Expenses", narration: "Staff & driver salaries", lines: [
+    { accountCode: "5000", accountName: "Operating Expenses", debit: 96000, credit: 0 },
+    { accountCode: "1000", accountName: "Cash", debit: 0, credit: 96000 }] },
+  { id: "jt-3", txnDate: "2026-07-08", sourceModule: "Collections", narration: "Collection from Ramco (UPI)", lines: [
+    { accountCode: "1010", accountName: "Bank", debit: 60000, credit: 0 },
+    { accountCode: "1100", accountName: "Accounts Receivable", debit: 0, credit: 60000 }] },
+  { id: "jt-4", txnDate: "2026-07-05", sourceModule: "Expenses", narration: "Godown rent", lines: [
+    { accountCode: "5000", accountName: "Operating Expenses", debit: 35000, credit: 0 },
+    { accountCode: "1000", accountName: "Cash", debit: 0, credit: 35000 }] },
+];
+
 function setPoStatus(id: string, status: string): Promise<PurchaseOrderDto> {
   const po = purchaseOrders.find((p) => p.id === id)!;
   po.status = status;
@@ -562,6 +586,47 @@ export const demoApi = {
     };
     products.push(p);
     return wait(clone(p));
+  },
+
+  // Accounting
+  profitLoss: (_from?: string, _to?: string): Promise<ProfitLossDto> => {
+    const d = dashboards[activeBiz()] ?? dashboards["b-transport"];
+    const tr = d.trend ?? [];
+    const totalIncome = tr.reduce((s, t) => s + t.income, 0);
+    const totalExpense = tr.reduce((s, t) => s + t.expense, 0);
+    return wait({ totalIncome, totalExpense, netProfit: totalIncome - totalExpense });
+  },
+  cashBook: (_from?: string, _to?: string): Promise<CashBookRowDto[]> => {
+    const d = dashboards[activeBiz()] ?? dashboards["b-transport"];
+    let bal = 0;
+    const rows: CashBookRowDto[] = (d.trend ?? []).map((t, i) => {
+      bal += t.income - t.expense;
+      return { date: `2026-${String((i % 12) + 1).padStart(2, "0")}-01`, description: `${t.label} — net settlement`, in: t.income, out: t.expense, balance: bal };
+    });
+    return wait(rows);
+  },
+  accounts: (): Promise<AccountDto[]> => wait(clone(accounts)),
+  journal: (_from?: string, _to?: string): Promise<JournalTxnDto[]> => wait(clone(journal)),
+  ledger: (accountId?: string, _from?: string, _to?: string): Promise<LedgerLineDto[]> => {
+    const acc = accounts.find((a) => a.id === accountId) ?? accounts[0];
+    let bal = 0;
+    const lines: LedgerLineDto[] = journal.flatMap((t) =>
+      t.lines.filter((l) => l.accountCode === acc.code).map((l) => {
+        bal += l.debit - l.credit;
+        return { date: t.txnDate, accountCode: acc.code, accountName: acc.name, narration: t.narration, debit: l.debit, credit: l.credit, balance: bal };
+      }));
+    return wait(lines);
+  },
+  async exportReport(reportKey: string, _format: "pdf" | "excel", _from?: string, _to?: string): Promise<void> {
+    // No server in demo — synthesize a small CSV so the download still works.
+    const d = dashboards[activeBiz()] ?? dashboards["b-transport"];
+    const rows = (d.trend ?? []).map((t) => `${t.label},${t.income},${t.expense},${t.income - t.expense}`).join("\n");
+    const blob = new Blob([`Report: ${reportKey}\n\nMonth,Income,Expense,Net\n${rows}\n`], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${reportKey}-demo.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
   },
 
   // Files — no storage in demo; return stubs.

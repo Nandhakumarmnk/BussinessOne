@@ -9,6 +9,7 @@ import { TransportScreen } from "./screens/Transport";
 import { CctvScreen } from "./screens/Cctv";
 import { FarmScreen } from "./screens/Farm";
 import { CoconutScreen } from "./screens/Coconut";
+import { AccountingScreen } from "./screens/Accounting";
 
 export function App() {
   const [user, setUser] = useState<UserSummary | null>(null);
@@ -192,6 +193,7 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
   const operationsNav = [
     { id: "expenses", label: "Expenses", icon: "receipt" },
     { id: "customers", label: "Customers", icon: "contact" },
+    { id: "accounting", label: "Accounting", icon: "book" },
     ...(vertical ? [vertical] : []),
   ];
   const activeLabel =
@@ -203,7 +205,7 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
     </div>
   );
 
-  const needsBusiness = ["expenses", "customers", "transport", "cctv", "farm", "coconut"].includes(nav);
+  const needsBusiness = ["expenses", "customers", "accounting", "transport", "cctv", "farm", "coconut"].includes(nav);
 
   return (
     <div className="layout">
@@ -305,6 +307,7 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
           {nav === "cctv" && activeId && <CctvScreen key={activeId} setError={setError} />}
           {nav === "farm" && activeId && <FarmScreen key={activeId} setError={setError} />}
           {nav === "coconut" && activeId && <CoconutScreen key={activeId} setError={setError} />}
+          {nav === "accounting" && activeId && <AccountingScreen key={activeId} setError={setError} />}
         </main>
       </div>
     </div>

@@ -2,11 +2,11 @@
 // Phase later replaces this with the shared @erp/api-client generated from OpenAPI.
 
 import type {
-  ApiEnvelope, BusinessDto, CoconutBatchDto, CoconutBatchPnlDto, CoconutProductDto, CreditDto,
-  CustomerDto, DashboardSummary, DriverDto, ExpenseDto, FarmBatchDto, FarmBatchPnlDto,
-  FarmBatchSaleDto, FeedDto, ItemDto, LedgerEntryDto, LoadDto, LoginResponse, MeResponse,
-  MemberDto, PurchaseOrderDto, RefItem, SaleDto, ServiceComplaintDto, SupplierDto, VehicleDto,
-  WalletDto, WalletTransactionDto,
+  AccountDto, ApiEnvelope, BusinessDto, CashBookRowDto, CoconutBatchDto, CoconutBatchPnlDto,
+  CoconutProductDto, CreditDto, CustomerDto, DashboardSummary, DriverDto, ExpenseDto, FarmBatchDto,
+  FarmBatchPnlDto, FarmBatchSaleDto, FeedDto, ItemDto, JournalTxnDto, LedgerEntryDto, LedgerLineDto,
+  LoadDto, LoginResponse, MeResponse, MemberDto, ProfitLossDto, PurchaseOrderDto, RefItem, SaleDto,
+  ServiceComplaintDto, SupplierDto, VehicleDto, WalletDto, WalletTransactionDto,
 } from "./types";
 import { demoApi } from "./demo";
 
@@ -71,6 +71,18 @@ const qs = (params: Record<string, string | number | undefined | null>) => {
   const s = q.toString();
   return s ? `?${s}` : "";
 };
+
+/** Saves a Blob to the user's device under the given filename. */
+export function triggerDownload(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 export interface CreateBusinessInput {
   name: string;
@@ -297,6 +309,27 @@ const liveApi = {
   products: () => request<CoconutProductDto[]>("/coconut/products"),
   createProduct: (input: CreateProductInput) =>
     request<CoconutProductDto>("/coconut/products", { method: "POST", body: JSON.stringify(input) }),
+
+  // ---- Accounting ----
+  profitLoss: (from?: string, to?: string) => request<ProfitLossDto>(`/accounting/profit-loss${qs({ from, to })}`),
+  cashBook: (from?: string, to?: string) => request<CashBookRowDto[]>(`/accounting/cash-book${qs({ from, to })}`),
+  accounts: () => request<AccountDto[]>("/accounting/accounts"),
+  journal: (from?: string, to?: string) => request<JournalTxnDto[]>(`/accounting/journal${qs({ from, to })}`),
+  ledger: (accountId?: string, from?: string, to?: string) =>
+    request<LedgerLineDto[]>(`/accounting/ledger${qs({ accountId, from, to })}`),
+
+  // ---- Reporting ----
+  /** Generates a report (reportKey: expenses|collections|credit-outstanding|profit-loss) as
+   *  pdf|excel and triggers a browser download. */
+  async exportReport(reportKey: string, format: "pdf" | "excel", from?: string, to?: string): Promise<void> {
+    const res = await fetch(`${BASE}/reports/export`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ reportKey, format, from: from ?? null, to: to ?? null }),
+    });
+    if (!res.ok) throw new Error(`Export failed (${res.status})`);
+    triggerDownload(await res.blob(), `${reportKey}.${format === "excel" ? "xlsx" : "pdf"}`);
+  },
 
   // ---- Files ----
   /** Uploads a file as multipart/form-data and returns the storage object key. */

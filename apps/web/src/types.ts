@@ -348,3 +348,51 @@ export interface CoconutBatchPnlDto {
   totalCost?: number;
   profit?: number;
 }
+
+/* ---- Accounting ---- */
+export interface ProfitLossDto {
+  totalIncome: number;
+  totalExpense: number;
+  netProfit: number;
+}
+
+export interface CashBookRowDto {
+  date: string;
+  description: string;
+  in: number;
+  out: number;
+  balance: number;
+}
+
+export interface AccountDto {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  isActive: boolean;
+}
+
+export interface JournalLineViewDto {
+  accountCode: string;
+  accountName: string;
+  debit: number;
+  credit: number;
+}
+
+export interface JournalTxnDto {
+  id: string;
+  txnDate: string;
+  sourceModule: string;
+  narration: string | null;
+  lines: JournalLineViewDto[];
+}
+
+export interface LedgerLineDto {
+  date: string;
+  accountCode: string;
+  accountName: string;
+  narration: string | null;
+  debit: number;
+  credit: number;
+  balance: number;
+}
