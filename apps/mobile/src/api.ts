@@ -35,6 +35,28 @@ export interface SyncPull {
   feeds: SyncItem[]; products: SyncItem[]; expenseTypes: SyncItem[];
 }
 
+/* ---- Module read models (mirror the backend DTOs used by the mobile screens) ---- */
+export interface BusinessLite {
+  id: string; name: string; businessTypeCode: string; businessTypeName: string;
+}
+export interface ItemLite {
+  id: string; itemCode: string; itemName: string; uom: string;
+  rate: number; stockQuantity: number; reorderLevel: number;
+}
+export interface ServiceComplaintLite {
+  id: string; complaintNumber: string; customerName: string | null;
+  issueDescription: string | null; status: string;
+}
+export interface FarmBatchLite {
+  id: string; batchNumber: string; animalType: string;
+  quantityPurchased: number; purchaseAmount: number; status: string;
+}
+export interface CoconutBatchLite {
+  id: string; batchNumber: string; productName: string | null;
+  quantity: number; purchaseAmount: number; status: string;
+}
+export interface ProfitLossLite { totalIncome: number; totalExpense: number; netProfit: number; }
+
 export interface ApiOptions {
   baseUrl: string;
   getToken: () => string | null;
@@ -107,6 +129,14 @@ export function createApi(opts: ApiOptions) {
     dashboard: () => request<DashboardSummary>("GET", "/dashboard/summary"),
     syncPull: (since?: string | null) =>
       request<SyncPull>("GET", `/sync/pull${since ? `?since=${encodeURIComponent(since)}` : ""}`),
+
+    // ---- Module reads (online) ----
+    businesses: () => request<BusinessLite[]>("GET", "/businesses"),
+    items: () => request<ItemLite[]>("GET", "/cctv/items"),
+    serviceComplaints: () => request<ServiceComplaintLite[]>("GET", "/cctv/service-complaints"),
+    farmBatches: () => request<FarmBatchLite[]>("GET", "/farm/batches"),
+    coconutBatches: () => request<CoconutBatchLite[]>("GET", "/coconut/batches"),
+    profitLoss: () => request<ProfitLossLite>("GET", "/accounting/profit-loss"),
   };
 }
 

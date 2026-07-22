@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { SafeAreaView, StatusBar } from "react-native";
 import { createApi } from "./src/api";
 import {
-  AddExpenseScreen, CustomersScreen, HomeScreen, LoginScreen, NewLoadScreen, Splash,
+  AccountingScreen, AddExpenseScreen, CctvScreen, CoconutScreen, CustomersScreen, FarmScreen,
+  HomeScreen, LoginScreen, NewLoadScreen, Splash,
 } from "./src/screens";
 import { session } from "./src/session";
 
@@ -18,7 +19,9 @@ const api = createApi({
   getBusinessId: () => session.getBusinessId(),
 });
 
-type Screen = "loading" | "login" | "home" | "addExpense" | "customers" | "newLoad";
+type Screen =
+  | "loading" | "login" | "home" | "addExpense" | "customers" | "newLoad"
+  | "cctv" | "farm" | "coconut" | "accounting";
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("loading");
@@ -44,11 +47,16 @@ export default function App() {
           onAddExpense={() => setScreen("addExpense")}
           onCustomers={() => setScreen("customers")}
           onNewLoad={() => setScreen("newLoad")}
+          onOpenModule={(m) => setScreen(m)}
         />
       )}
       {screen === "addExpense" && <AddExpenseScreen api={api} onDone={() => setScreen("home")} />}
       {screen === "customers" && <CustomersScreen api={api} onBack={() => setScreen("home")} />}
       {screen === "newLoad" && <NewLoadScreen onBack={() => setScreen("home")} />}
+      {screen === "cctv" && <CctvScreen api={api} onBack={() => setScreen("home")} />}
+      {screen === "farm" && <FarmScreen api={api} onBack={() => setScreen("home")} />}
+      {screen === "coconut" && <CoconutScreen api={api} onBack={() => setScreen("home")} />}
+      {screen === "accounting" && <AccountingScreen api={api} onBack={() => setScreen("home")} />}
     </SafeAreaView>
   );
 }

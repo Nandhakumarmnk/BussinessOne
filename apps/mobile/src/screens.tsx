@@ -3,7 +3,10 @@ import {
   ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { Api, DashboardSummary, SyncItem, SyncPull } from "./api";
+import {
+  Api, BusinessLite, CoconutBatchLite, DashboardSummary, FarmBatchLite, ItemLite,
+  ProfitLossLite, ServiceComplaintLite, SyncItem, SyncPull,
+} from "./api";
 import { cachedMasters, outbox, runSync } from "./offline";
 import { session } from "./session";
 
@@ -40,18 +43,37 @@ export function LoginScreen({ api, onLoggedIn }: { api: Api; onLoggedIn: () => v
   );
 }
 
-export function HomeScreen({ api, onLogout, onAddExpense, onCustomers, onNewLoad }: {
-  api: Api; onLogout: () => void; onAddExpense: () => void; onCustomers: () => void; onNewLoad: () => void;
+export type ModuleKey = "cctv" | "farm" | "coconut" | "accounting";
+
+export function HomeScreen({ api, onLogout, onAddExpense, onCustomers, onNewLoad, onOpenModule }: {
+  api: Api; onLogout: () => void; onAddExpense: () => void; onCustomers: () => void;
+  onNewLoad: () => void; onOpenModule: (m: ModuleKey) => void;
 }) {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [pending, setPending] = useState(0);
   const [syncing, setSyncing] = useState(false);
+  const [businesses, setBusinesses] = useState<BusinessLite[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(session.getBusinessId());
 
   async function refresh() {
     setPending(await outbox.count());
     try { setSummary(await api.dashboard()); } catch { /* offline — keep last */ }
   }
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    refresh();
+    api.businesses()
+      .then((bs) => {
+        setBusinesses(bs);
+        if (!session.getBusinessId() && bs[0]) { session.setBusiness(bs[0].id); setActiveId(bs[0].id); }
+      })
+      .catch(() => { /* offline — switcher hidden */ });
+  }, []);
+
+  async function switchBusiness(id: string) {
+    await session.setBusiness(id);
+    setActiveId(id);
+    await refresh();
+  }
 
   async function sync() {
     setSyncing(true);
@@ -64,6 +86,8 @@ export function HomeScreen({ api, onLogout, onAddExpense, onCustomers, onNewLoad
     }
   }
 
+  const active = businesses.find((b) => b.id === activeId) ?? null;
+  const type = active?.businessTypeCode;
   const kpis: [string, number][] = summary
     ? [["Today Income", summary.todayIncome], ["Today Expense", summary.todayExpense],
        ["Month Profit", summary.totalProfit], ["Pending Credits", summary.pendingCredits]]
@@ -75,6 +99,22 @@ export function HomeScreen({ api, onLogout, onAddExpense, onCustomers, onNewLoad
         <Text style={styles.title}>Dashboard</Text>
         <Pressable onPress={onLogout}><Text style={styles.link}>Log out</Text></Pressable>
       </View>
+
+      {businesses.length > 0 && (
+        <View style={{ gap: 6 }}>
+          <Text style={styles.muted}>Business</Text>
+          <View style={styles.chips}>
+            {businesses.map((b) => {
+              const on = b.id === activeId;
+              return (
+                <Pressable key={b.id} onPress={() => switchBusiness(b.id)} style={[styles.chip, on && styles.chipOn]}>
+                  <Text style={on ? styles.chipTextOn : styles.chipText}>{b.name}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      )}
 
       {pending > 0 && <Text style={styles.badge}>▲ {pending} change(s) waiting to sync</Text>}
 
@@ -93,10 +133,28 @@ export function HomeScreen({ api, onLogout, onAddExpense, onCustomers, onNewLoad
         <Pressable style={[styles.btn, styles.btnGhost, styles.grow]} onPress={onCustomers}>
           <Text style={styles.btnGhostText}>Customers</Text>
         </Pressable>
-        <Pressable style={[styles.btn, styles.btnGhost, styles.grow]} onPress={onNewLoad}>
-          <Text style={styles.btnGhostText}>+ New Load</Text>
+        <Pressable style={[styles.btn, styles.btnGhost, styles.grow]} onPress={() => onOpenModule("accounting")}>
+          <Text style={styles.btnGhostText}>Accounting</Text>
         </Pressable>
       </View>
+
+      {type === "TRANSPORT" && (
+        <Pressable style={[styles.btn, styles.btnGhost]} onPress={onNewLoad}>
+          <Text style={styles.btnGhostText}>+ New Load</Text></Pressable>
+      )}
+      {type === "CCTV" && (
+        <Pressable style={[styles.btn, styles.btnGhost]} onPress={() => onOpenModule("cctv")}>
+          <Text style={styles.btnGhostText}>CCTV — Inventory &amp; Service</Text></Pressable>
+      )}
+      {type === "FARM" && (
+        <Pressable style={[styles.btn, styles.btnGhost]} onPress={() => onOpenModule("farm")}>
+          <Text style={styles.btnGhostText}>Farm — Batches</Text></Pressable>
+      )}
+      {type === "COCONUT" && (
+        <Pressable style={[styles.btn, styles.btnGhost]} onPress={() => onOpenModule("coconut")}>
+          <Text style={styles.btnGhostText}>Coconut — Batches</Text></Pressable>
+      )}
+
       <Pressable style={[styles.btn, styles.btnAlt]} onPress={sync} disabled={syncing}>
         <Text style={styles.btnText}>{syncing ? "Syncing…" : "Sync now"}</Text>
       </Pressable>
@@ -323,6 +381,141 @@ export function NewLoadScreen({ onBack }: { onBack: () => void }) {
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* Module read screens (online)                                               */
+/* -------------------------------------------------------------------------- */
+function useLoad<T>(loader: () => Promise<T>): { data: T | null; loading: boolean; error: string | null } {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    loader()
+      .then((d) => { if (alive) setData(d); })
+      .catch((e: any) => { if (alive) setError(e?.message ?? "Failed to load — check connection."); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  // eslint-disable-next-line
+  }, []);
+  return { data, loading, error };
+}
+
+function ModuleHeader({ title, onBack }: { title: string; onBack: () => void }) {
+  return (
+    <View style={styles.row}>
+      <Text style={styles.title}>{title}</Text>
+      <Pressable onPress={onBack}><Text style={styles.link}>Back</Text></Pressable>
+    </View>
+  );
+}
+
+export function CctvScreen({ api, onBack }: { api: Api; onBack: () => void }) {
+  const items = useLoad<ItemLite[]>(() => api.items());
+  const service = useLoad<ServiceComplaintLite[]>(() => api.serviceComplaints());
+  const busy = items.loading || service.loading;
+
+  return (
+    <ScrollView contentContainerStyle={styles.page}>
+      <ModuleHeader title="CCTV" onBack={onBack} />
+      {busy && <ActivityIndicator size="large" />}
+      {(items.error || service.error) && <Text style={styles.muted}>{items.error ?? service.error}</Text>}
+
+      <Text style={styles.title}>Inventory</Text>
+      <View style={styles.kpis}>
+        {(items.data ?? []).map((it) => {
+          const low = it.stockQuantity <= it.reorderLevel;
+          return (
+            <View key={it.id} style={styles.kpi}>
+              <Text style={{ fontWeight: "600" }}>{it.itemName}</Text>
+              <Text style={styles.muted}>{it.itemCode} · {inr(it.rate)}</Text>
+              <Text style={{ color: low ? "#b45309" : "#047857", fontWeight: "600" }}>
+                {it.stockQuantity} {it.uom}{low ? " · low stock" : ""}
+              </Text>
+            </View>
+          );
+        })}
+        {!busy && (items.data ?? []).length === 0 && <Text style={styles.muted}>No items.</Text>}
+      </View>
+
+      <Text style={styles.title}>Service desk</Text>
+      <View style={styles.kpis}>
+        {(service.data ?? []).map((s) => (
+          <View key={s.id} style={styles.kpi}>
+            <Text style={{ fontWeight: "600" }}>{s.complaintNumber} · {s.customerName ?? "Customer"}</Text>
+            <Text style={styles.muted}>{s.issueDescription ?? "—"}</Text>
+            <Text style={styles.pill}>{s.status.replace(/_/g, " ")}</Text>
+          </View>
+        ))}
+        {!busy && (service.data ?? []).length === 0 && <Text style={styles.muted}>No complaints.</Text>}
+      </View>
+    </ScrollView>
+  );
+}
+
+export function FarmScreen({ api, onBack }: { api: Api; onBack: () => void }) {
+  const { data, loading, error } = useLoad<FarmBatchLite[]>(() => api.farmBatches());
+  return (
+    <ScrollView contentContainerStyle={styles.page}>
+      <ModuleHeader title="Farm — Batches" onBack={onBack} />
+      {loading && <ActivityIndicator size="large" />}
+      {error && <Text style={styles.muted}>{error}</Text>}
+      <View style={styles.kpis}>
+        {(data ?? []).map((b) => (
+          <View key={b.id} style={styles.kpi}>
+            <Text style={{ fontWeight: "600" }}>{b.batchNumber} · {b.animalType}</Text>
+            <Text style={styles.muted}>{b.quantityPurchased} birds · {inr(b.purchaseAmount)}</Text>
+            <Text style={styles.pill}>{b.status}</Text>
+          </View>
+        ))}
+        {!loading && (data ?? []).length === 0 && <Text style={styles.muted}>No batches.</Text>}
+      </View>
+    </ScrollView>
+  );
+}
+
+export function CoconutScreen({ api, onBack }: { api: Api; onBack: () => void }) {
+  const { data, loading, error } = useLoad<CoconutBatchLite[]>(() => api.coconutBatches());
+  return (
+    <ScrollView contentContainerStyle={styles.page}>
+      <ModuleHeader title="Coconut — Batches" onBack={onBack} />
+      {loading && <ActivityIndicator size="large" />}
+      {error && <Text style={styles.muted}>{error}</Text>}
+      <View style={styles.kpis}>
+        {(data ?? []).map((b) => (
+          <View key={b.id} style={styles.kpi}>
+            <Text style={{ fontWeight: "600" }}>{b.batchNumber} · {b.productName ?? "Product"}</Text>
+            <Text style={styles.muted}>{b.quantity} units · {inr(b.purchaseAmount)}</Text>
+            <Text style={styles.pill}>{b.status}</Text>
+          </View>
+        ))}
+        {!loading && (data ?? []).length === 0 && <Text style={styles.muted}>No batches.</Text>}
+      </View>
+    </ScrollView>
+  );
+}
+
+export function AccountingScreen({ api, onBack }: { api: Api; onBack: () => void }) {
+  const { data, loading, error } = useLoad<ProfitLossLite>(() => api.profitLoss());
+  const rows: [string, number][] = data
+    ? [["Total income", data.totalIncome], ["Total expense", data.totalExpense], ["Net profit", data.netProfit]]
+    : [];
+  return (
+    <ScrollView contentContainerStyle={styles.page}>
+      <ModuleHeader title="Accounting — P&L" onBack={onBack} />
+      {loading && <ActivityIndicator size="large" />}
+      {error && <Text style={styles.muted}>{error}</Text>}
+      <View style={styles.kpis}>
+        {rows.map(([label, value]) => (
+          <View key={label} style={styles.kpi}>
+            <Text style={styles.muted}>{label}</Text>
+            <Text style={styles.kpiValue}>{inr(value)}</Text>
+          </View>
+        ))}
+      </View>
+    </ScrollView>
+  );
+}
+
 export function Splash() {
   return <View style={styles.center}><ActivityIndicator size="large" /></View>;
 }
@@ -357,4 +550,9 @@ const styles = StyleSheet.create({
   chipOn: { backgroundColor: "#2563eb", borderColor: "#2563eb" },
   chipText: { color: "#1e293b", fontSize: 13 },
   chipTextOn: { color: "#fff", fontSize: 13, fontWeight: "600" },
+  pill: {
+    alignSelf: "flex-start", marginTop: 6, overflow: "hidden",
+    backgroundColor: "#e2e8f0", color: "#334155", fontSize: 12, fontWeight: "600",
+    paddingVertical: 2, paddingHorizontal: 8, borderRadius: 999,
+  },
 });
