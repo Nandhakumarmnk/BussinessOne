@@ -59,3 +59,21 @@ export function Icon({ name, className = "icon" }: { name: string; className?: s
     </svg>
   );
 }
+
+/** Shimmer placeholder list shown while a card's data is loading. */
+export function ListSkeleton({ rows = 5 }: { rows?: number }) {
+  return (
+    <div className="card"><div className="card__body"><div className="rows">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="row">
+          <div className="skeleton skeleton--avatar" />
+          <div className="row__main">
+            <div className="skeleton skeleton--line" />
+            <div className="skeleton skeleton--line skeleton--sm" />
+          </div>
+          <div className="skeleton skeleton--pill" />
+        </div>
+      ))}
+    </div></div></div>
+  );
+}

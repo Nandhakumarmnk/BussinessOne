@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { CustomerDto, ItemDto, PurchaseOrderDto, SaleDto, ServiceComplaintDto } from "../types";
-import { Icon, inr, prettyStatus, statusBadgeClass } from "../ui";
+import { Icon, inr, ListSkeleton, prettyStatus, statusBadgeClass } from "../ui";
 
 type Tab = "items" | "orders" | "sales" | "service";
 
@@ -12,6 +12,7 @@ export function CctvScreen({ setError }: { setError: (e: string | null) => void 
   const [sales, setSales] = useState<SaleDto[]>([]);
   const [service, setService] = useState<ServiceComplaintDto[]>([]);
   const [customers, setCustomers] = useState<CustomerDto[]>([]);
+  const [loading, setLoading] = useState(true);
 
   async function loadAll() {
     try {
@@ -21,6 +22,8 @@ export function CctvScreen({ setError }: { setError: (e: string | null) => void 
       setItems(i); setOrders(o); setSales(s); setService(sv); setCustomers(c);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load CCTV data");
+    } finally {
+      setLoading(false);
     }
   }
   useEffect(() => { loadAll(); /* eslint-disable-next-line */ }, []);
@@ -47,10 +50,14 @@ export function CctvScreen({ setError }: { setError: (e: string | null) => void 
         ))}
       </div>
 
-      {tab === "items" && <ItemsTab items={items} setError={setError} reload={loadAll} />}
-      {tab === "orders" && <OrdersTab orders={orders} setError={setError} reload={loadAll} />}
-      {tab === "sales" && <SalesTab sales={sales} />}
-      {tab === "service" && <ServiceTab service={service} customers={customers} setError={setError} reload={loadAll} />}
+      {loading ? <ListSkeleton /> : (
+        <>
+          {tab === "items" && <ItemsTab items={items} setError={setError} reload={loadAll} />}
+          {tab === "orders" && <OrdersTab orders={orders} setError={setError} reload={loadAll} />}
+          {tab === "sales" && <SalesTab sales={sales} />}
+          {tab === "service" && <ServiceTab service={service} customers={customers} setError={setError} reload={loadAll} />}
+        </>
+      )}
     </section>
   );
 }
@@ -218,10 +225,10 @@ function SalesTab({ sales }: { sales: SaleDto[] }) {
 }
 
 /* -------------------------------------------------------------------------- */
-const SERVICE_COLUMNS: { key: string; label: string }[] = [
-  { key: "OPEN", label: "Open" },
-  { key: "IN_PROGRESS", label: "In progress" },
-  { key: "RESOLVED", label: "Resolved" },
+const SERVICE_COLUMNS: { key: string; label: string; tone: string }[] = [
+  { key: "OPEN", label: "Open", tone: "open" },
+  { key: "IN_PROGRESS", label: "In progress", tone: "progress" },
+  { key: "RESOLVED", label: "Resolved", tone: "resolved" },
 ];
 
 function ServiceTab({ service, customers, setError, reload }: {
@@ -258,7 +265,7 @@ function ServiceTab({ service, customers, setError, reload }: {
         {SERVICE_COLUMNS.map((col) => {
           const cards = service.filter((s) => s.status.toUpperCase() === col.key);
           return (
-            <div key={col.key} className="kanban__col">
+            <div key={col.key} className={`kanban__col kanban__col--${col.tone}`}>
               <div className="kanban__head">{col.label}<span className="count">{cards.length}</span></div>
               {cards.map((s) => {
                 const nxt = nextStatus[s.status.toUpperCase()];

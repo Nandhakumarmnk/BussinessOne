@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { CoconutBatchDto, CoconutBatchPnlDto, CoconutProductDto } from "../types";
-import { Icon, inr, prettyStatus, statusBadgeClass, today } from "../ui";
+import { Icon, inr, ListSkeleton, prettyStatus, statusBadgeClass, today } from "../ui";
 import { PnlBreakdown } from "./Farm";
 
 type Tab = "batches" | "products";
@@ -10,6 +10,7 @@ export function CoconutScreen({ setError }: { setError: (e: string | null) => vo
   const [tab, setTab] = useState<Tab>("batches");
   const [batches, setBatches] = useState<CoconutBatchDto[]>([]);
   const [products, setProducts] = useState<CoconutProductDto[]>([]);
+  const [loading, setLoading] = useState(true);
 
   async function loadAll() {
     try {
@@ -17,6 +18,8 @@ export function CoconutScreen({ setError }: { setError: (e: string | null) => vo
       setBatches(b); setProducts(p);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load coconut data");
+    } finally {
+      setLoading(false);
     }
   }
   useEffect(() => { loadAll(); /* eslint-disable-next-line */ }, []);
@@ -41,8 +44,12 @@ export function CoconutScreen({ setError }: { setError: (e: string | null) => vo
         ))}
       </div>
 
-      {tab === "batches" && <BatchesTab batches={batches} products={products} setError={setError} reload={loadAll} />}
-      {tab === "products" && <ProductsTab products={products} setError={setError} reload={loadAll} />}
+      {loading ? <ListSkeleton /> : (
+        <>
+          {tab === "batches" && <BatchesTab batches={batches} products={products} setError={setError} reload={loadAll} />}
+          {tab === "products" && <ProductsTab products={products} setError={setError} reload={loadAll} />}
+        </>
+      )}
     </section>
   );
 }

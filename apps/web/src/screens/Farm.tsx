@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { FarmBatchDto, FarmBatchPnlDto, FeedDto, WalletDto, WalletTransactionDto } from "../types";
-import { Icon, inr, prettyStatus, statusBadgeClass, today } from "../ui";
+import { Icon, inr, ListSkeleton, prettyStatus, statusBadgeClass, today } from "../ui";
+import { DonutChart } from "../charts";
 
 type Tab = "batches" | "feeds" | "wallet";
 
@@ -11,6 +12,7 @@ export function FarmScreen({ setError }: { setError: (e: string | null) => void 
   const [feeds, setFeeds] = useState<FeedDto[]>([]);
   const [wallet, setWallet] = useState<WalletDto | null>(null);
   const [txns, setTxns] = useState<WalletTransactionDto[]>([]);
+  const [loading, setLoading] = useState(true);
 
   async function loadAll() {
     try {
@@ -20,6 +22,8 @@ export function FarmScreen({ setError }: { setError: (e: string | null) => void 
       setBatches(b); setFeeds(f); setWallet(w); setTxns(t);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load farm data");
+    } finally {
+      setLoading(false);
     }
   }
   useEffect(() => { loadAll(); /* eslint-disable-next-line */ }, []);
@@ -45,9 +49,13 @@ export function FarmScreen({ setError }: { setError: (e: string | null) => void 
         ))}
       </div>
 
-      {tab === "batches" && <BatchesTab batches={batches} setError={setError} reload={loadAll} />}
-      {tab === "feeds" && <FeedsTab feeds={feeds} setError={setError} reload={loadAll} />}
-      {tab === "wallet" && <WalletTab wallet={wallet} txns={txns} />}
+      {loading ? <ListSkeleton /> : (
+        <>
+          {tab === "batches" && <BatchesTab batches={batches} setError={setError} reload={loadAll} />}
+          {tab === "feeds" && <FeedsTab feeds={feeds} setError={setError} reload={loadAll} />}
+          {tab === "wallet" && <WalletTab wallet={wallet} txns={txns} />}
+        </>
+      )}
     </section>
   );
 }
@@ -147,8 +155,12 @@ function BatchesTab({ batches, setError, reload }: {
 export function PnlBreakdown({ rows, profit }: {
   rows: { label: string; value: number; kind: "in" | "out" }[]; profit: number;
 }) {
+  const costSlices = rows.filter((r) => r.kind === "out" && r.value > 0).map((r) => ({ label: r.label, value: r.value }));
   return (
     <>
+      {costSlices.length > 0 && (
+        <div style={{ marginBottom: 8 }}><DonutChart data={costSlices} centerLabel="Costs" /></div>
+      )}
       <div className="rows">
         {rows.map((r) => (
           <div key={r.label} className="row">

@@ -57,6 +57,8 @@ function PnlTab({ setError }: { setError: (e: string | null) => void }) {
     finally { setBusy(null); }
   }
 
+  const margin = pl && pl.totalIncome ? Math.round((pl.netProfit / pl.totalIncome) * 100) : 0;
+
   return (
     <>
       <div className="kpis" style={{ marginBottom: 22 }}>
@@ -64,7 +66,7 @@ function PnlTab({ setError }: { setError: (e: string | null) => void }) {
           <div className="kpi__label">Total income</div><div className="kpi__value">{inr(pl?.totalIncome ?? 0)}</div></div>
         <div className="kpi t-neg"><div className="kpi__top"><div className="kpi__icon"><Icon name="down" /></div></div>
           <div className="kpi__label">Total expense</div><div className="kpi__value">{inr(pl?.totalExpense ?? 0)}</div></div>
-        <div className="kpi is-featured"><div className="kpi__top"><div className="kpi__icon"><Icon name="wallet" /></div><span className="kpi__delta">Net</span></div>
+        <div className="kpi is-featured"><div className="kpi__top"><div className="kpi__icon"><Icon name="wallet" /></div><span className="kpi__delta">{margin}% margin</span></div>
           <div className="kpi__label">Net profit</div><div className="kpi__value">{inr(pl?.netProfit ?? 0)}</div></div>
       </div>
 

@@ -12,6 +12,16 @@ import { session } from "./session";
 
 const inr = (n: number) => `₹ ${Math.round(n).toLocaleString("en-IN")}`;
 
+/** Colour a status pill: green = done, blue = in-flight, amber = new/open. */
+function pillTone(status: string): { backgroundColor: string; color: string } {
+  const s = status.toUpperCase();
+  if (["RESOLVED", "ACTIVE", "SOLD", "CLOSED", "PAID", "CLEARED", "APPROVED", "RECEIVED"].includes(s))
+    return { backgroundColor: "#dcfce7", color: "#047857" };
+  if (["IN_PROGRESS", "PARTIAL", "SUBMITTED", "PENDING"].includes(s))
+    return { backgroundColor: "#dbeafe", color: "#1d4ed8" };
+  return { backgroundColor: "#fef3c7", color: "#92400e" };
+}
+
 export function LoginScreen({ api, onLoggedIn }: { api: Api; onLoggedIn: () => void }) {
   const [mobileOrEmail, setMobileOrEmail] = useState("owner@business-one.local");
   const [password, setPassword] = useState("Owner@123");
@@ -443,7 +453,7 @@ export function CctvScreen({ api, onBack }: { api: Api; onBack: () => void }) {
           <View key={s.id} style={styles.kpi}>
             <Text style={{ fontWeight: "600" }}>{s.complaintNumber} · {s.customerName ?? "Customer"}</Text>
             <Text style={styles.muted}>{s.issueDescription ?? "—"}</Text>
-            <Text style={styles.pill}>{s.status.replace(/_/g, " ")}</Text>
+            <Text style={[styles.pill, pillTone(s.status)]}>{s.status.replace(/_/g, " ")}</Text>
           </View>
         ))}
         {!busy && (service.data ?? []).length === 0 && <Text style={styles.muted}>No complaints.</Text>}
@@ -464,7 +474,7 @@ export function FarmScreen({ api, onBack }: { api: Api; onBack: () => void }) {
           <View key={b.id} style={styles.kpi}>
             <Text style={{ fontWeight: "600" }}>{b.batchNumber} · {b.animalType}</Text>
             <Text style={styles.muted}>{b.quantityPurchased} birds · {inr(b.purchaseAmount)}</Text>
-            <Text style={styles.pill}>{b.status}</Text>
+            <Text style={[styles.pill, pillTone(b.status)]}>{b.status}</Text>
           </View>
         ))}
         {!loading && (data ?? []).length === 0 && <Text style={styles.muted}>No batches.</Text>}
@@ -485,7 +495,7 @@ export function CoconutScreen({ api, onBack }: { api: Api; onBack: () => void })
           <View key={b.id} style={styles.kpi}>
             <Text style={{ fontWeight: "600" }}>{b.batchNumber} · {b.productName ?? "Product"}</Text>
             <Text style={styles.muted}>{b.quantity} units · {inr(b.purchaseAmount)}</Text>
-            <Text style={styles.pill}>{b.status}</Text>
+            <Text style={[styles.pill, pillTone(b.status)]}>{b.status}</Text>
           </View>
         ))}
         {!loading && (data ?? []).length === 0 && <Text style={styles.muted}>No batches.</Text>}
