@@ -135,15 +135,75 @@ function BatchesTab({ batches, products, setError, reload }: {
         <div className="card__body">
           {!selected && <div className="empty">Select a batch to view its profit &amp; loss.</div>}
           {selected && !pnl && <div className="empty">Loading…</div>}
-          {pnl && <PnlBreakdown rows={[
-            { label: "Sales", value: pnl.totalSales, kind: "in" },
-            { label: "Purchase", value: pnl.purchase, kind: "out" },
-            { label: "Labour", value: pnl.labourCost, kind: "out" },
-            { label: "Transport", value: pnl.transportCost, kind: "out" },
-          ]} profit={pnl.profit ?? pnl.totalSales - (pnl.totalCost ?? 0)} />}
+          {pnl && selected && (
+            <>
+              <PnlBreakdown rows={[
+                { label: "Sales", value: pnl.totalSales, kind: "in" },
+                { label: "Purchase", value: pnl.purchase, kind: "out" },
+                { label: "Labour", value: pnl.labourCost, kind: "out" },
+                { label: "Transport", value: pnl.transportCost, kind: "out" },
+              ]} profit={pnl.profit ?? pnl.totalSales - (pnl.totalCost ?? 0)} />
+              <CoconutBatchActions batchId={selected.id} setError={setError} onDone={() => openPnl(selected)} />
+            </>
+          )}
         </div>
       </div>
     </div>
+  );
+}
+
+function CoconutBatchActions({ batchId, setError, onDone }: {
+  batchId: string; setError: (e: string | null) => void; onDone: () => void | Promise<void>;
+}) {
+  const [sale, setSale] = useState({ qty: "", value: "" });
+  const [charge, setCharge] = useState({ kind: "labour", amount: "" });
+  const [busy, setBusy] = useState<"" | "sale" | "charge">("");
+
+  async function recordSale(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy("sale"); setError(null);
+    try {
+      await api.addCoconutSale(batchId, { saleDate: today(), saleQuantity: Number(sale.qty || 0), saleValue: Number(sale.value || 0) });
+      setSale({ qty: "", value: "" });
+      await onDone();
+    } catch (err) { setError(err instanceof Error ? err.message : "Failed to record sale"); }
+    finally { setBusy(""); }
+  }
+  async function addCharge(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy("charge"); setError(null);
+    try {
+      const amount = Number(charge.amount || 0);
+      if (charge.kind === "labour") await api.addLabourCharge(batchId, { amount, chargeDate: today() });
+      else await api.addTransportCharge(batchId, { amount, chargeDate: today() });
+      setCharge({ kind: charge.kind, amount: "" });
+      await onDone();
+    } catch (err) { setError(err instanceof Error ? err.message : "Failed to add charge"); }
+    finally { setBusy(""); }
+  }
+
+  return (
+    <>
+      <div className="form__divider">Record sale</div>
+      <form className="form form--inline" onSubmit={recordSale}>
+        <div className="field"><label>Qty</label>
+          <input className="input" type="number" min="0" value={sale.qty} onChange={(e) => setSale({ ...sale, qty: e.target.value })} required /></div>
+        <div className="field"><label>Value (₹)</label>
+          <input className="input" type="number" min="0" value={sale.value} onChange={(e) => setSale({ ...sale, value: e.target.value })} required /></div>
+        <button className="btn" disabled={busy === "sale"}><Icon name="plus" />{busy === "sale" ? "…" : "Sale"}</button>
+      </form>
+
+      <div className="form__divider">Add charge</div>
+      <form className="form form--inline" onSubmit={addCharge}>
+        <div className="field"><label>Type</label>
+          <select className="select" value={charge.kind} onChange={(e) => setCharge({ ...charge, kind: e.target.value })}>
+            <option value="labour">Labour</option><option value="transport">Transport</option>
+          </select></div>
+        <div className="field"><label>Amount (₹)</label>
+          <input className="input" type="number" min="0" value={charge.amount} onChange={(e) => setCharge({ ...charge, amount: e.target.value })} required /></div>
+        <button className="btn btn--ghost" disabled={busy === "charge"}><Icon name="plus" />{busy === "charge" ? "…" : "Charge"}</button>
+      </form>
+    </>
   );
 }
 

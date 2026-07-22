@@ -225,6 +225,14 @@ export interface CreatePurchaseOrderInput {
   lines: PoLineInput[];
 }
 
+export interface AddFeedEntryInput { feedId: string; entryDate: string; quantity: number; rate: number; }
+export interface AddBatchSaleInput {
+  saleDate: string; saleQuantity: number; totalWeight?: number | null; saleAmount: number; customerId?: string | null;
+}
+export interface AddLabourChargeInput { labourName?: string | null; amount: number; chargeDate: string; }
+export interface AddTransportChargeInput { vehicle?: string | null; amount: number; chargeDate: string; }
+export interface AddCoconutSaleInput { saleDate: string; saleQuantity: number; saleValue: number; customerId?: string | null; }
+
 const liveApi = {
   // ---- Auth ----
   login: (mobileOrEmail: string, password: string) =>
@@ -312,6 +320,10 @@ const liveApi = {
     request<FarmBatchDto>("/farm/batches", { method: "POST", body: JSON.stringify(input) }),
   farmBatchPnl: (id: string) => request<FarmBatchPnlDto>(`/farm/batches/${id}/pnl`),
   farmBatchSales: (id: string) => request<FarmBatchSaleDto[]>(`/farm/batches/${id}/sales`),
+  addFeedEntry: (batchId: string, input: AddFeedEntryInput) =>
+    request<unknown>(`/farm/batches/${batchId}/feed-entries`, { method: "POST", body: JSON.stringify(input) }),
+  addBatchSale: (batchId: string, input: AddBatchSaleInput) =>
+    request<FarmBatchSaleDto>(`/farm/batches/${batchId}/sales`, { method: "POST", body: JSON.stringify(input) }),
   feeds: () => request<FeedDto[]>("/farm/feeds"),
   createFeed: (input: CreateFeedInput) =>
     request<FeedDto>("/farm/feeds", { method: "POST", body: JSON.stringify(input) }),
@@ -323,6 +335,12 @@ const liveApi = {
   createCoconutBatch: (input: CreateCoconutBatchInput) =>
     request<CoconutBatchDto>("/coconut/batches", { method: "POST", body: JSON.stringify(input) }),
   coconutBatchPnl: (id: string) => request<CoconutBatchPnlDto>(`/coconut/batches/${id}/pnl`),
+  addLabourCharge: (batchId: string, input: AddLabourChargeInput) =>
+    request<unknown>(`/coconut/batches/${batchId}/labour-charges`, { method: "POST", body: JSON.stringify(input) }),
+  addTransportCharge: (batchId: string, input: AddTransportChargeInput) =>
+    request<unknown>(`/coconut/batches/${batchId}/transport-charges`, { method: "POST", body: JSON.stringify(input) }),
+  addCoconutSale: (batchId: string, input: AddCoconutSaleInput) =>
+    request<unknown>(`/coconut/batches/${batchId}/sales`, { method: "POST", body: JSON.stringify(input) }),
   products: () => request<CoconutProductDto[]>("/coconut/products"),
   createProduct: (input: CreateProductInput) =>
     request<CoconutProductDto>("/coconut/products", { method: "POST", body: JSON.stringify(input) }),

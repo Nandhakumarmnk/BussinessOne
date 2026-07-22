@@ -51,7 +51,7 @@ export function FarmScreen({ setError }: { setError: (e: string | null) => void 
 
       {loading ? <ListSkeleton /> : (
         <>
-          {tab === "batches" && <BatchesTab batches={batches} setError={setError} reload={loadAll} />}
+          {tab === "batches" && <BatchesTab batches={batches} feeds={feeds} setError={setError} reload={loadAll} />}
           {tab === "feeds" && <FeedsTab feeds={feeds} setError={setError} reload={loadAll} />}
           {tab === "wallet" && <WalletTab wallet={wallet} txns={txns} />}
         </>
@@ -61,8 +61,8 @@ export function FarmScreen({ setError }: { setError: (e: string | null) => void 
 }
 
 /* -------------------------------------------------------------------------- */
-function BatchesTab({ batches, setError, reload }: {
-  batches: FarmBatchDto[]; setError: (e: string | null) => void; reload: () => Promise<void>;
+function BatchesTab({ batches, feeds, setError, reload }: {
+  batches: FarmBatchDto[]; feeds: FeedDto[]; setError: (e: string | null) => void; reload: () => Promise<void>;
 }) {
   const [selected, setSelected] = useState<FarmBatchDto | null>(null);
   const [pnl, setPnl] = useState<FarmBatchPnlDto | null>(null);
@@ -138,14 +138,19 @@ function BatchesTab({ batches, setError, reload }: {
         <div className="card__body">
           {!selected && <div className="empty">Select a batch to view its profit &amp; loss.</div>}
           {selected && !pnl && <div className="empty">Loading…</div>}
-          {pnl && <PnlBreakdown rows={[
-            { label: "Sales", value: pnl.totalSales, kind: "in" },
-            { label: "Purchase", value: pnl.purchase, kind: "out" },
-            { label: "Feed", value: pnl.feedCost, kind: "out" },
-            { label: "Medical", value: pnl.medicalCost, kind: "out" },
-            { label: "Labour", value: pnl.labourCost, kind: "out" },
-            { label: "Other", value: pnl.otherCost, kind: "out" },
-          ]} profit={pnl.profit ?? pnl.totalSales - (pnl.totalCost ?? 0)} />}
+          {pnl && selected && (
+            <>
+              <PnlBreakdown rows={[
+                { label: "Sales", value: pnl.totalSales, kind: "in" },
+                { label: "Purchase", value: pnl.purchase, kind: "out" },
+                { label: "Feed", value: pnl.feedCost, kind: "out" },
+                { label: "Medical", value: pnl.medicalCost, kind: "out" },
+                { label: "Labour", value: pnl.labourCost, kind: "out" },
+                { label: "Other", value: pnl.otherCost, kind: "out" },
+              ]} profit={pnl.profit ?? pnl.totalSales - (pnl.totalCost ?? 0)} />
+              <FarmBatchActions batchId={selected.id} feeds={feeds} setError={setError} onDone={() => openPnl(selected)} />
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -174,6 +179,67 @@ export function PnlBreakdown({ rows, profit }: {
       <div className={`pnl-total ${profit >= 0 ? "is-pos" : "is-neg"}`}>
         <span>Net profit</span><span>{inr(profit)}</span>
       </div>
+    </>
+  );
+}
+
+function FarmBatchActions({ batchId, feeds, setError, onDone }: {
+  batchId: string; feeds: FeedDto[]; setError: (e: string | null) => void; onDone: () => void | Promise<void>;
+}) {
+  const [sale, setSale] = useState({ qty: "", weight: "", amount: "" });
+  const [feed, setFeed] = useState({ feedId: "", qty: "" });
+  const [busy, setBusy] = useState<"" | "sale" | "feed">("");
+
+  async function recordSale(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy("sale"); setError(null);
+    try {
+      await api.addBatchSale(batchId, {
+        saleDate: today(), saleQuantity: Number(sale.qty || 0),
+        totalWeight: sale.weight ? Number(sale.weight) : null, saleAmount: Number(sale.amount || 0),
+      });
+      setSale({ qty: "", weight: "", amount: "" });
+      await onDone();
+    } catch (err) { setError(err instanceof Error ? err.message : "Failed to record sale"); }
+    finally { setBusy(""); }
+  }
+  async function addFeed(e: React.FormEvent) {
+    e.preventDefault();
+    const f = feeds.find((x) => x.id === feed.feedId);
+    if (!f) { setError("Pick a feed."); return; }
+    setBusy("feed"); setError(null);
+    try {
+      await api.addFeedEntry(batchId, { feedId: feed.feedId, entryDate: today(), quantity: Number(feed.qty || 0), rate: f.rate });
+      setFeed({ feedId: "", qty: "" });
+      await onDone();
+    } catch (err) { setError(err instanceof Error ? err.message : "Failed to add feed"); }
+    finally { setBusy(""); }
+  }
+
+  return (
+    <>
+      <div className="form__divider">Record sale</div>
+      <form className="form form--inline" onSubmit={recordSale}>
+        <div className="field"><label>Qty</label>
+          <input className="input" type="number" min="0" value={sale.qty} onChange={(e) => setSale({ ...sale, qty: e.target.value })} required /></div>
+        <div className="field"><label>Weight (kg)</label>
+          <input className="input" type="number" min="0" value={sale.weight} onChange={(e) => setSale({ ...sale, weight: e.target.value })} /></div>
+        <div className="field"><label>Amount (₹)</label>
+          <input className="input" type="number" min="0" value={sale.amount} onChange={(e) => setSale({ ...sale, amount: e.target.value })} required /></div>
+        <button className="btn" disabled={busy === "sale"}><Icon name="plus" />{busy === "sale" ? "…" : "Sale"}</button>
+      </form>
+
+      <div className="form__divider">Add feed</div>
+      <form className="form form--inline" onSubmit={addFeed}>
+        <div className="field" style={{ minWidth: 150 }}><label>Feed</label>
+          <select className="select" value={feed.feedId} onChange={(e) => setFeed({ ...feed, feedId: e.target.value })}>
+            <option value="">— Select —</option>
+            {feeds.map((f) => <option key={f.id} value={f.id}>{f.feedName}</option>)}
+          </select></div>
+        <div className="field"><label>Qty (kg)</label>
+          <input className="input" type="number" min="0" value={feed.qty} onChange={(e) => setFeed({ ...feed, qty: e.target.value })} required /></div>
+        <button className="btn btn--ghost" disabled={busy === "feed"}><Icon name="plus" />{busy === "feed" ? "…" : "Feed"}</button>
+      </form>
     </>
   );
 }

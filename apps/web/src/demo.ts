@@ -8,10 +8,11 @@
    ========================================================================== */
 
 import type {
-  CreateBusinessInput, CreateCoconutBatchInput, CreateCustomerInput, CreateDriverInput,
-  CreateExpenseInput, CreateFarmBatchInput, CreateFeedInput, CreateItemInput, CreateLoadInput,
-  CreateProductInput, CreatePurchaseOrderInput, CreateServiceComplaintInput, CreateSupplierInput,
-  CreateVehicleInput, InviteUserInput, RecordCollectionInput,
+  AddBatchSaleInput, AddCoconutSaleInput, AddFeedEntryInput, AddLabourChargeInput,
+  AddTransportChargeInput, CreateBusinessInput, CreateCoconutBatchInput, CreateCustomerInput,
+  CreateDriverInput, CreateExpenseInput, CreateFarmBatchInput, CreateFeedInput, CreateItemInput,
+  CreateLoadInput, CreateProductInput, CreatePurchaseOrderInput, CreateServiceComplaintInput,
+  CreateSupplierInput, CreateVehicleInput, InviteUserInput, RecordCollectionInput,
 } from "./api";
 import type {
   AccountDto, BusinessDto, CashBookRowDto, CoconutBatchDto, CoconutBatchPnlDto, CoconutProductDto,
@@ -264,12 +265,17 @@ const walletTxns: WalletTransactionDto[] = [
 ];
 let walletBalance = 84500;
 
+// Extras accumulated from in-app writes (sales/feed/charges) so the demo P&L reacts live.
+const farmExtra: Record<string, { sales: number; feed: number }> = {};
+const coconutExtra: Record<string, { sales: number; labour: number; transport: number }> = {};
+
 function farmPnl(b: FarmBatchDto): FarmBatchPnlDto {
-  const feedCost = Math.round(b.purchaseAmount * 0.9);
+  const ex = farmExtra[b.id] ?? { sales: 0, feed: 0 };
+  const feedCost = Math.round(b.purchaseAmount * 0.9) + ex.feed;
   const medicalCost = Math.round(b.purchaseAmount * 0.08);
   const labourCost = Math.round(b.purchaseAmount * 0.12);
   const otherCost = Math.round(b.purchaseAmount * 0.05);
-  const totalSales = Math.round(b.purchaseAmount * (b.status === "CLOSED" ? 2.05 : 1.15));
+  const totalSales = Math.round(b.purchaseAmount * (b.status === "CLOSED" ? 2.05 : 1.15)) + ex.sales;
   const totalCost = b.purchaseAmount + feedCost + medicalCost + labourCost + otherCost;
   return {
     batchId: b.id, batchNumber: b.batchNumber, batchName: b.batchName, purchase: b.purchaseAmount,
@@ -290,9 +296,10 @@ const coconutBatches: CoconutBatchDto[] = [
 ];
 
 function coconutPnl(b: CoconutBatchDto): CoconutBatchPnlDto {
-  const labourCost = Math.round(b.purchaseAmount * 0.14);
-  const transportCost = Math.round(b.purchaseAmount * 0.08);
-  const totalSales = Math.round(b.purchaseAmount * (b.status === "SOLD" ? 1.32 : 0.4));
+  const ex = coconutExtra[b.id] ?? { sales: 0, labour: 0, transport: 0 };
+  const labourCost = Math.round(b.purchaseAmount * 0.14) + ex.labour;
+  const transportCost = Math.round(b.purchaseAmount * 0.08) + ex.transport;
+  const totalSales = Math.round(b.purchaseAmount * (b.status === "SOLD" ? 1.32 : 0.4)) + ex.sales;
   const totalCost = b.purchaseAmount + labourCost + transportCost;
   return {
     batchId: b.id, batchNumber: b.batchNumber, productId: b.productId, productName: b.productName,
@@ -564,6 +571,19 @@ export const demoApi = {
       { id: uid("bs"), batchId: id, saleDate: "2026-07-18", saleQuantity: 800, totalWeight: 1600, saleAmount: 152000, customerId: null },
       { id: uid("bs"), batchId: id, saleDate: "2026-07-10", saleQuantity: 600, totalWeight: 1140, saleAmount: 108000, customerId: null },
     ]),
+  addFeedEntry: (batchId: string, input: AddFeedEntryInput): Promise<unknown> => {
+    const e = (farmExtra[batchId] ??= { sales: 0, feed: 0 });
+    e.feed += input.quantity * input.rate;
+    return wait({ ok: true });
+  },
+  addBatchSale: (batchId: string, input: AddBatchSaleInput): Promise<FarmBatchSaleDto> => {
+    const e = (farmExtra[batchId] ??= { sales: 0, feed: 0 });
+    e.sales += input.saleAmount;
+    return wait({
+      id: uid("bs"), batchId, saleDate: input.saleDate, saleQuantity: input.saleQuantity,
+      totalWeight: input.totalWeight ?? null, saleAmount: input.saleAmount, customerId: input.customerId ?? null,
+    });
+  },
   feeds: (): Promise<FeedDto[]> => wait(clone(feeds)),
   createFeed: (input: CreateFeedInput): Promise<FeedDto> => {
     const f: FeedDto = {
@@ -591,6 +611,21 @@ export const demoApi = {
   coconutBatchPnl: (id: string): Promise<CoconutBatchPnlDto> => {
     const b = coconutBatches.find((x) => x.id === id) ?? coconutBatches[0];
     return wait(coconutPnl(b));
+  },
+  addLabourCharge: (batchId: string, input: AddLabourChargeInput): Promise<unknown> => {
+    const e = (coconutExtra[batchId] ??= { sales: 0, labour: 0, transport: 0 });
+    e.labour += input.amount;
+    return wait({ ok: true });
+  },
+  addTransportCharge: (batchId: string, input: AddTransportChargeInput): Promise<unknown> => {
+    const e = (coconutExtra[batchId] ??= { sales: 0, labour: 0, transport: 0 });
+    e.transport += input.amount;
+    return wait({ ok: true });
+  },
+  addCoconutSale: (batchId: string, input: AddCoconutSaleInput): Promise<unknown> => {
+    const e = (coconutExtra[batchId] ??= { sales: 0, labour: 0, transport: 0 });
+    e.sales += input.saleValue;
+    return wait({ ok: true });
   },
   products: (): Promise<CoconutProductDto[]> => wait(clone(products)),
   createProduct: (input: CreateProductInput): Promise<CoconutProductDto> => {
