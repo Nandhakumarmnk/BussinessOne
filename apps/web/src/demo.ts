@@ -10,16 +10,18 @@
 import type {
   AddBatchSaleInput, AddCoconutSaleInput, AddFeedEntryInput, AddLabourChargeInput,
   AddTransportChargeInput, CreateBusinessInput, CreateCoconutBatchInput, CreateCustomerInput,
-  CreateDriverInput, CreateExpenseInput, CreateFarmBatchInput, CreateFeedInput, CreateItemInput,
-  CreateLoadInput, CreateProductInput, CreatePurchaseOrderInput, CreateServiceComplaintInput,
-  CreateSupplierInput, CreateVehicleInput, InviteUserInput, RecordCollectionInput,
+  CreateDriverInput, CreateEmployeeInput, CreateExpenseInput, CreateFarmBatchInput, CreateFeedInput,
+  CreateItemInput, CreateLoadInput, CreateProductInput, CreatePurchaseOrderInput,
+  CreateServiceComplaintInput, CreateSupplierInput, CreateVehicleInput, InviteUserInput,
+  RecordCollectionInput, RecordSalaryInput,
 } from "./api";
 import type {
   AccountDto, BusinessDto, CashBookRowDto, CoconutBatchDto, CoconutBatchPnlDto, CoconutProductDto,
-  CreditDto, CustomerDto, DashboardSummary, DriverDto, ExpenseDto, FarmBatchDto, FarmBatchPnlDto,
-  FarmBatchSaleDto, FeedDto, ItemDto, JournalTxnDto, LedgerEntryDto, LedgerLineDto, LoadDto,
-  LoginResponse, MeResponse, MemberDto, ProfitLossDto, PurchaseOrderDto, RefItem, SaleDto,
-  ServiceComplaintDto, SupplierDto, VehicleDto, WalletDto, WalletTransactionDto,
+  CreditDto, CustomerDto, DashboardSummary, DriverDto, EmployeeDto, ExpenseDto, FarmBatchDto,
+  FarmBatchPnlDto, FarmBatchSaleDto, FeedDto, ItemDto, JournalTxnDto, LedgerEntryDto, LedgerLineDto,
+  LoadDto, LoginResponse, MeResponse, MemberDto, ProfitLossDto, PurchaseOrderDto, RefItem,
+  SalaryRecordDto, SaleDto, ServiceComplaintDto, SupplierDto, VehicleDto, WalletDto,
+  WalletTransactionDto,
 } from "./types";
 
 /* -- tiny helpers ---------------------------------------------------------- */
@@ -331,6 +333,23 @@ const journal: JournalTxnDto[] = [
     { accountCode: "1000", accountName: "Cash", debit: 0, credit: 35000 }] },
 ];
 
+/* -- Employees ------------------------------------------------------------- */
+const employees: EmployeeDto[] = [
+  { id: "em-1", name: "Priya Kumar", mobile: "9000023456", address: "Erode", joiningDate: "2024-04-01", salary: 28000, status: "ACTIVE" },
+  { id: "em-2", name: "Arun Selvam", mobile: "9000034567", address: "Coimbatore", joiningDate: "2023-11-15", salary: 32000, status: "ACTIVE" },
+  { id: "em-3", name: "Divya Ramesh", mobile: "9000045678", address: "Salem", joiningDate: "2025-02-10", salary: 24000, status: "ACTIVE" },
+  { id: "em-4", name: "Suresh Babu", mobile: "9000056789", address: "Tiruppur", joiningDate: "2022-08-01", salary: 21000, status: "INACTIVE" },
+];
+const salaryByEmployee: Record<string, SalaryRecordDto[]> = {
+  "em-1": [
+    { id: uid("sal"), employeeId: "em-1", periodMonth: "2026-06-01", amount: 28000, paidAmount: 28000, paidOn: "2026-07-02", note: "June salary", balance: 0 },
+    { id: uid("sal"), employeeId: "em-1", periodMonth: "2026-07-01", amount: 28000, paidAmount: 15000, paidOn: "2026-07-18", note: "Advance", balance: 13000 },
+  ],
+  "em-2": [
+    { id: uid("sal"), employeeId: "em-2", periodMonth: "2026-06-01", amount: 32000, paidAmount: 32000, paidOn: "2026-07-02", note: null, balance: 0 },
+  ],
+};
+
 function setPoStatus(id: string, status: string): Promise<PurchaseOrderDto> {
   const po = purchaseOrders.find((p) => p.id === id)!;
   po.status = status;
@@ -634,6 +653,27 @@ export const demoApi = {
     };
     products.push(p);
     return wait(clone(p));
+  },
+
+  // Employees
+  employees: (): Promise<EmployeeDto[]> => wait(clone(employees)),
+  createEmployee: (input: CreateEmployeeInput): Promise<EmployeeDto> => {
+    const em: EmployeeDto = {
+      id: uid("em"), name: input.name, mobile: input.mobile ?? null, address: input.address ?? null,
+      joiningDate: input.joiningDate ?? null, salary: input.salary, status: input.status ?? "ACTIVE",
+    };
+    employees.unshift(em);
+    return wait(clone(em));
+  },
+  salaryHistory: (id: string): Promise<SalaryRecordDto[]> => wait(clone(salaryByEmployee[id] ?? [])),
+  recordSalary: (id: string, input: RecordSalaryInput): Promise<SalaryRecordDto> => {
+    const rec: SalaryRecordDto = {
+      id: uid("sal"), employeeId: id, periodMonth: input.periodMonth, amount: input.amount,
+      paidAmount: input.paidAmount, paidOn: input.paidOn ?? null, note: input.note ?? null,
+      balance: input.amount - input.paidAmount,
+    };
+    (salaryByEmployee[id] ??= []).push(rec);
+    return wait(clone(rec));
   },
 
   // Accounting

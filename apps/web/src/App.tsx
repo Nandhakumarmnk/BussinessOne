@@ -5,6 +5,7 @@ import { Icon, initials, inr } from "./ui";
 import { DonutChart, Sparkline, TrendChart } from "./charts";
 import { ExpensesScreen } from "./screens/Expenses";
 import { CustomersScreen } from "./screens/Customers";
+import { EmployeesScreen } from "./screens/Employees";
 import { TransportScreen } from "./screens/Transport";
 import { CctvScreen } from "./screens/Cctv";
 import { FarmScreen } from "./screens/Farm";
@@ -193,6 +194,7 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
   const operationsNav = [
     { id: "expenses", label: "Expenses", icon: "receipt" },
     { id: "customers", label: "Customers", icon: "contact" },
+    { id: "employees", label: "Employees", icon: "users" },
     { id: "accounting", label: "Accounting", icon: "book" },
     ...(vertical ? [vertical] : []),
   ];
@@ -205,7 +207,7 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
     </div>
   );
 
-  const needsBusiness = ["expenses", "customers", "accounting", "transport", "cctv", "farm", "coconut"].includes(nav);
+  const needsBusiness = ["expenses", "customers", "employees", "accounting", "transport", "cctv", "farm", "coconut"].includes(nav);
 
   return (
     <div className="layout">
@@ -303,6 +305,7 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
 
           {nav === "expenses" && activeId && <ExpensesScreen key={activeId} setError={setError} />}
           {nav === "customers" && activeId && <CustomersScreen key={activeId} setError={setError} />}
+          {nav === "employees" && activeId && <EmployeesScreen key={activeId} setError={setError} />}
           {nav === "transport" && activeId && <TransportScreen key={activeId} setError={setError} />}
           {nav === "cctv" && activeId && <CctvScreen key={activeId} setError={setError} />}
           {nav === "farm" && activeId && <FarmScreen key={activeId} setError={setError} />}

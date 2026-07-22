@@ -3,10 +3,11 @@
 
 import type {
   AccountDto, ApiEnvelope, BusinessDto, CashBookRowDto, CoconutBatchDto, CoconutBatchPnlDto,
-  CoconutProductDto, CreditDto, CustomerDto, DashboardSummary, DriverDto, ExpenseDto, FarmBatchDto,
-  FarmBatchPnlDto, FarmBatchSaleDto, FeedDto, ItemDto, JournalTxnDto, LedgerEntryDto, LedgerLineDto,
-  LoadDto, LoginResponse, MeResponse, MemberDto, ProfitLossDto, PurchaseOrderDto, RefItem, SaleDto,
-  ServiceComplaintDto, SupplierDto, VehicleDto, WalletDto, WalletTransactionDto,
+  CoconutProductDto, CreditDto, CustomerDto, DashboardSummary, DriverDto, EmployeeDto, ExpenseDto,
+  FarmBatchDto, FarmBatchPnlDto, FarmBatchSaleDto, FeedDto, ItemDto, JournalTxnDto, LedgerEntryDto,
+  LedgerLineDto, LoadDto, LoginResponse, MeResponse, MemberDto, ProfitLossDto, PurchaseOrderDto,
+  RefItem, SalaryRecordDto, SaleDto, ServiceComplaintDto, SupplierDto, VehicleDto, WalletDto,
+  WalletTransactionDto,
 } from "./types";
 import { demoApi } from "./demo";
 
@@ -233,6 +234,23 @@ export interface AddLabourChargeInput { labourName?: string | null; amount: numb
 export interface AddTransportChargeInput { vehicle?: string | null; amount: number; chargeDate: string; }
 export interface AddCoconutSaleInput { saleDate: string; saleQuantity: number; saleValue: number; customerId?: string | null; }
 
+export interface CreateEmployeeInput {
+  name: string;
+  mobile?: string | null;
+  address?: string | null;
+  joiningDate?: string | null;
+  salary: number;
+  status?: string | null;
+}
+
+export interface RecordSalaryInput {
+  periodMonth: string;
+  amount: number;
+  paidAmount: number;
+  paidOn?: string | null;
+  note?: string | null;
+}
+
 const liveApi = {
   // ---- Auth ----
   login: (mobileOrEmail: string, password: string) =>
@@ -344,6 +362,14 @@ const liveApi = {
   products: () => request<CoconutProductDto[]>("/coconut/products"),
   createProduct: (input: CreateProductInput) =>
     request<CoconutProductDto>("/coconut/products", { method: "POST", body: JSON.stringify(input) }),
+
+  // ---- Employees ----
+  employees: () => request<EmployeeDto[]>("/employees"),
+  createEmployee: (input: CreateEmployeeInput) =>
+    request<EmployeeDto>("/employees", { method: "POST", body: JSON.stringify(input) }),
+  salaryHistory: (id: string) => request<SalaryRecordDto[]>(`/employees/${id}/salary`),
+  recordSalary: (id: string, input: RecordSalaryInput) =>
+    request<SalaryRecordDto>(`/employees/${id}/salary`, { method: "POST", body: JSON.stringify(input) }),
 
   // ---- Accounting ----
   profitLoss: (from?: string, to?: string) => request<ProfitLossDto>(`/accounting/profit-loss${qs({ from, to })}`),

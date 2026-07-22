@@ -396,3 +396,25 @@ export interface LedgerLineDto {
   credit: number;
   balance: number;
 }
+
+/* ---- Employees ---- */
+export interface EmployeeDto {
+  id: string;
+  name: string;
+  mobile: string | null;
+  address: string | null;
+  joiningDate: string | null;
+  salary: number;
+  status: string;
+}
+
+export interface SalaryRecordDto {
+  id: string;
+  employeeId: string;
+  periodMonth: string;
+  amount: number;
+  paidAmount: number;
+  paidOn: string | null;
+  note: string | null;
+  balance?: number;
+}
