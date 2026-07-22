@@ -2,8 +2,11 @@
 // Phase later replaces this with the shared @erp/api-client generated from OpenAPI.
 
 import type {
-  ApiEnvelope, BusinessDto, CreditDto, CustomerDto, DashboardSummary, DriverDto, ExpenseDto,
-  LedgerEntryDto, LoadDto, LoginResponse, MeResponse, MemberDto, RefItem, VehicleDto,
+  ApiEnvelope, BusinessDto, CoconutBatchDto, CoconutBatchPnlDto, CoconutProductDto, CreditDto,
+  CustomerDto, DashboardSummary, DriverDto, ExpenseDto, FarmBatchDto, FarmBatchPnlDto,
+  FarmBatchSaleDto, FeedDto, ItemDto, LedgerEntryDto, LoadDto, LoginResponse, MeResponse,
+  MemberDto, PurchaseOrderDto, RefItem, SaleDto, ServiceComplaintDto, SupplierDto, VehicleDto,
+  WalletDto, WalletTransactionDto,
 } from "./types";
 import { demoApi } from "./demo";
 
@@ -141,6 +144,60 @@ export interface CreateLoadInput {
   otherExpense: number;
 }
 
+export interface CreateItemInput {
+  itemCode: string;
+  itemName: string;
+  uom: string;
+  hsnCode?: string | null;
+  rate: number;
+  taxPercentage: number;
+  reorderLevel: number;
+}
+
+export interface CreateSupplierInput {
+  name: string;
+  mobile?: string | null;
+  gstNumber?: string | null;
+  address?: string | null;
+}
+
+export interface CreateServiceComplaintInput {
+  complaintNumber: string;
+  customerId: string;
+  issueDescription?: string | null;
+  assignedEmployeeId?: string | null;
+}
+
+export interface CreateFarmBatchInput {
+  batchNumber: string;
+  batchName?: string | null;
+  animalType: string;
+  startDate: string;
+  quantityPurchased: number;
+  purchaseAmount: number;
+}
+
+export interface CreateFeedInput {
+  feedName: string;
+  feedType?: string | null;
+  uom: string;
+  rate: number;
+}
+
+export interface CreateCoconutBatchInput {
+  productId: string;
+  batchNumber: string;
+  purchaseDate: string;
+  quantity: number;
+  purchaseAmount: number;
+}
+
+export interface CreateProductInput {
+  name: string;
+  category?: string | null;
+  uom: string;
+}
+
 const liveApi = {
   // ---- Auth ----
   login: (mobileOrEmail: string, password: string) =>
@@ -201,6 +258,45 @@ const liveApi = {
       method: "PATCH",
       body: JSON.stringify({ amount, mode, paymentDate }),
     }),
+
+  // ---- CCTV / Electronics ----
+  items: () => request<ItemDto[]>("/cctv/items"),
+  createItem: (input: CreateItemInput) =>
+    request<ItemDto>("/cctv/items", { method: "POST", body: JSON.stringify(input) }),
+  suppliers: () => request<SupplierDto[]>("/cctv/suppliers"),
+  createSupplier: (input: CreateSupplierInput) =>
+    request<SupplierDto>("/cctv/suppliers", { method: "POST", body: JSON.stringify(input) }),
+  purchaseOrders: (status?: string) => request<PurchaseOrderDto[]>(`/cctv/purchase-orders${qs({ status })}`),
+  poSubmit: (id: string) => request<PurchaseOrderDto>(`/cctv/purchase-orders/${id}/submit`, { method: "POST" }),
+  poApprove: (id: string) => request<PurchaseOrderDto>(`/cctv/purchase-orders/${id}/approve`, { method: "POST" }),
+  poReceive: (id: string) => request<PurchaseOrderDto>(`/cctv/purchase-orders/${id}/receive`, { method: "POST" }),
+  cctvSales: (from?: string, to?: string) => request<SaleDto[]>(`/cctv/sales${qs({ from, to })}`),
+  serviceComplaints: (status?: string) => request<ServiceComplaintDto[]>(`/cctv/service-complaints${qs({ status })}`),
+  createServiceComplaint: (input: CreateServiceComplaintInput) =>
+    request<ServiceComplaintDto>("/cctv/service-complaints", { method: "POST", body: JSON.stringify(input) }),
+  updateServiceStatus: (id: string, status: string) =>
+    request<ServiceComplaintDto>(`/cctv/service-complaints/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+
+  // ---- Farm ----
+  farmBatches: (status?: string) => request<FarmBatchDto[]>(`/farm/batches${qs({ status })}`),
+  createFarmBatch: (input: CreateFarmBatchInput) =>
+    request<FarmBatchDto>("/farm/batches", { method: "POST", body: JSON.stringify(input) }),
+  farmBatchPnl: (id: string) => request<FarmBatchPnlDto>(`/farm/batches/${id}/pnl`),
+  farmBatchSales: (id: string) => request<FarmBatchSaleDto[]>(`/farm/batches/${id}/sales`),
+  feeds: () => request<FeedDto[]>("/farm/feeds"),
+  createFeed: (input: CreateFeedInput) =>
+    request<FeedDto>("/farm/feeds", { method: "POST", body: JSON.stringify(input) }),
+  wallet: () => request<WalletDto>("/farm/wallet"),
+  walletTransactions: () => request<WalletTransactionDto[]>("/farm/wallet/transactions"),
+
+  // ---- Coconut ----
+  coconutBatches: (status?: string) => request<CoconutBatchDto[]>(`/coconut/batches${qs({ status })}`),
+  createCoconutBatch: (input: CreateCoconutBatchInput) =>
+    request<CoconutBatchDto>("/coconut/batches", { method: "POST", body: JSON.stringify(input) }),
+  coconutBatchPnl: (id: string) => request<CoconutBatchPnlDto>(`/coconut/batches/${id}/pnl`),
+  products: () => request<CoconutProductDto[]>("/coconut/products"),
+  createProduct: (input: CreateProductInput) =>
+    request<CoconutProductDto>("/coconut/products", { method: "POST", body: JSON.stringify(input) }),
 
   // ---- Files ----
   /** Uploads a file as multipart/form-data and returns the storage object key. */

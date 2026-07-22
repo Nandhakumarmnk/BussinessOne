@@ -8,12 +8,17 @@
    ========================================================================== */
 
 import type {
-  CreateBusinessInput, CreateCustomerInput, CreateDriverInput, CreateExpenseInput,
-  CreateLoadInput, CreateVehicleInput, InviteUserInput, RecordCollectionInput,
+  CreateBusinessInput, CreateCoconutBatchInput, CreateCustomerInput, CreateDriverInput,
+  CreateExpenseInput, CreateFarmBatchInput, CreateFeedInput, CreateItemInput, CreateLoadInput,
+  CreateProductInput, CreateServiceComplaintInput, CreateSupplierInput, CreateVehicleInput,
+  InviteUserInput, RecordCollectionInput,
 } from "./api";
 import type {
-  BusinessDto, CreditDto, CustomerDto, DashboardSummary, DriverDto, ExpenseDto,
-  LedgerEntryDto, LoadDto, LoginResponse, MeResponse, MemberDto, RefItem, VehicleDto,
+  BusinessDto, CoconutBatchDto, CoconutBatchPnlDto, CoconutProductDto, CreditDto, CustomerDto,
+  DashboardSummary, DriverDto, ExpenseDto, FarmBatchDto, FarmBatchPnlDto, FarmBatchSaleDto,
+  FeedDto, ItemDto, LedgerEntryDto, LoadDto, LoginResponse, MeResponse, MemberDto,
+  PurchaseOrderDto, RefItem, SaleDto, ServiceComplaintDto, SupplierDto, VehicleDto, WalletDto,
+  WalletTransactionDto,
 } from "./types";
 
 /* -- tiny helpers ---------------------------------------------------------- */
@@ -208,6 +213,99 @@ const credits: CreditDto[] = [
   { id: "cr-5", loadId: loads[1].id, loadNumber: "TR-2061", customerId: "c-3", customerName: "KG Textiles", loadAmount: 78000, paidAmount: 78000, balanceAmount: 0, status: "CLEARED" },
 ];
 
+/* -- CCTV vertical --------------------------------------------------------- */
+const items: ItemDto[] = [
+  { id: "it-1", itemCode: "CAM-DOME-2MP", itemName: "2MP Dome Camera", uom: "pcs", hsnCode: "8525", rate: 1650, taxPercentage: 18, stockQuantity: 42, reorderLevel: 10, isActive: true },
+  { id: "it-2", itemCode: "CAM-BULLET-4MP", itemName: "4MP Bullet Camera", uom: "pcs", hsnCode: "8525", rate: 2450, taxPercentage: 18, stockQuantity: 8, reorderLevel: 10, isActive: true },
+  { id: "it-3", itemCode: "DVR-8CH", itemName: "8-Channel DVR", uom: "pcs", hsnCode: "8521", rate: 5200, taxPercentage: 18, stockQuantity: 15, reorderLevel: 5, isActive: true },
+  { id: "it-4", itemCode: "HDD-2TB", itemName: "2TB Surveillance HDD", uom: "pcs", hsnCode: "8471", rate: 4800, taxPercentage: 18, stockQuantity: 23, reorderLevel: 8, isActive: true },
+  { id: "it-5", itemCode: "CABLE-3+1", itemName: "3+1 CCTV Cable (90m)", uom: "roll", hsnCode: "8544", rate: 1350, taxPercentage: 18, stockQuantity: 6, reorderLevel: 12, isActive: true },
+];
+
+const suppliers: SupplierDto[] = [
+  { id: "sup-1", name: "Hikvision Distributors", mobile: "9840011111", gstNumber: "33HIKV0001Z1", address: "Chennai" },
+  { id: "sup-2", name: "CP Plus Wholesale", mobile: "9840022222", gstNumber: null, address: "Coimbatore" },
+];
+
+const purchaseOrders: PurchaseOrderDto[] = [
+  { id: "po-1", poNumber: "PO-1042", supplierId: "sup-1", supplierName: "Hikvision Distributors", poDate: "2026-07-15", totalAmount: 98500, status: "APPROVED", lines: [] },
+  { id: "po-2", poNumber: "PO-1043", supplierId: "sup-2", supplierName: "CP Plus Wholesale", poDate: "2026-07-18", totalAmount: 64200, status: "DRAFT", lines: [] },
+  { id: "po-3", poNumber: "PO-1041", supplierId: "sup-1", supplierName: "Hikvision Distributors", poDate: "2026-07-10", totalAmount: 145000, status: "RECEIVED", lines: [] },
+];
+
+const cctvSales: SaleDto[] = [
+  { id: "sl-1", invoiceNumber: "INV-2087", customerId: "c-1", customerName: "Ramco Cements Ltd", saleDate: "2026-07-16", installationCharges: 3500, labourCharges: 1500, subTotal: 42000, taxAmount: 7560, totalAmount: 54560, paidAmount: 54560, balance: 0, status: "PAID", lines: [] },
+  { id: "sl-2", invoiceNumber: "INV-2088", customerId: "c-4", customerName: "Annapoorna Foods", saleDate: "2026-07-19", installationCharges: 2000, labourCharges: 1000, subTotal: 28000, taxAmount: 5040, totalAmount: 36040, paidAmount: 16040, balance: 20000, status: "PARTIAL", lines: [] },
+];
+
+const serviceComplaints: ServiceComplaintDto[] = [
+  { id: "sc-1", complaintNumber: "SVC-501", customerId: "c-1", customerName: "Ramco Cements Ltd", issueDescription: "Camera 3 offline since morning", assignedEmployeeId: null, assignedEmployeeName: "Arun Selvam", status: "OPEN", openedAt: "2026-07-20T09:00:00Z", closedAt: null },
+  { id: "sc-2", complaintNumber: "SVC-502", customerId: "c-4", customerName: "Annapoorna Foods", issueDescription: "DVR not recording overnight", assignedEmployeeId: null, assignedEmployeeName: "Divya Ramesh", status: "IN_PROGRESS", openedAt: "2026-07-19T11:30:00Z", closedAt: null },
+  { id: "sc-3", complaintNumber: "SVC-499", customerId: "c-2", customerName: "Sakthi Sugars", issueDescription: "Night vision blurry on gate cam", assignedEmployeeId: null, assignedEmployeeName: "Arun Selvam", status: "RESOLVED", openedAt: "2026-07-15T10:00:00Z", closedAt: "2026-07-17T16:00:00Z" },
+];
+
+/* -- Farm vertical --------------------------------------------------------- */
+const farmBatches: FarmBatchDto[] = [
+  { id: "fb-1", batchNumber: "BATCH-24", batchName: "Broiler July-A", animalType: "Broiler", startDate: "2026-06-20", quantityPurchased: 2000, purchaseAmount: 120000, status: "ACTIVE" },
+  { id: "fb-2", batchNumber: "BATCH-23", batchName: "Layer June", animalType: "Layer", startDate: "2026-05-15", quantityPurchased: 1500, purchaseAmount: 135000, status: "ACTIVE" },
+  { id: "fb-3", batchNumber: "BATCH-22", batchName: "Broiler June-B", animalType: "Broiler", startDate: "2026-05-01", quantityPurchased: 1800, purchaseAmount: 99000, status: "CLOSED" },
+];
+
+const feeds: FeedDto[] = [
+  { id: "fd-1", feedName: "Starter Crumbs", feedType: "Starter", uom: "kg", rate: 38, isActive: true },
+  { id: "fd-2", feedName: "Grower Mash", feedType: "Grower", uom: "kg", rate: 34, isActive: true },
+  { id: "fd-3", feedName: "Finisher Pellets", feedType: "Finisher", uom: "kg", rate: 36, isActive: true },
+];
+
+const walletTxns: WalletTransactionDto[] = [
+  { id: "wt-1", txnDate: "2026-07-18", direction: "IN", amount: 60000, reason: "Batch-22 sale settlement" },
+  { id: "wt-2", txnDate: "2026-07-16", direction: "OUT", amount: 32000, reason: "Feed purchase" },
+  { id: "wt-3", txnDate: "2026-07-12", direction: "IN", amount: 45000, reason: "Egg sales" },
+];
+let walletBalance = 84500;
+
+function farmPnl(b: FarmBatchDto): FarmBatchPnlDto {
+  const feedCost = Math.round(b.purchaseAmount * 0.9);
+  const medicalCost = Math.round(b.purchaseAmount * 0.08);
+  const labourCost = Math.round(b.purchaseAmount * 0.12);
+  const otherCost = Math.round(b.purchaseAmount * 0.05);
+  const totalSales = Math.round(b.purchaseAmount * (b.status === "CLOSED" ? 2.05 : 1.15));
+  const totalCost = b.purchaseAmount + feedCost + medicalCost + labourCost + otherCost;
+  return {
+    batchId: b.id, batchNumber: b.batchNumber, batchName: b.batchName, purchase: b.purchaseAmount,
+    feedCost, medicalCost, labourCost, otherCost, totalSales, totalCost, profit: totalSales - totalCost,
+  };
+}
+
+/* -- Coconut vertical ------------------------------------------------------ */
+const products: CoconutProductDto[] = [
+  { id: "pr-1", name: "Semi-husked Coconut", category: "Raw", uom: "pcs", isActive: true },
+  { id: "pr-2", name: "Copra", category: "Processed", uom: "kg", isActive: true },
+  { id: "pr-3", name: "Tender Coconut", category: "Raw", uom: "pcs", isActive: true },
+];
+
+const coconutBatches: CoconutBatchDto[] = [
+  { id: "cb-1", productId: "pr-1", productName: "Semi-husked Coconut", batchNumber: "CB-31", purchaseDate: "2026-07-14", quantity: 12000, purchaseAmount: 186000, status: "ACTIVE" },
+  { id: "cb-2", productId: "pr-2", productName: "Copra", batchNumber: "CB-30", purchaseDate: "2026-07-05", quantity: 3200, purchaseAmount: 224000, status: "SOLD" },
+];
+
+function coconutPnl(b: CoconutBatchDto): CoconutBatchPnlDto {
+  const labourCost = Math.round(b.purchaseAmount * 0.14);
+  const transportCost = Math.round(b.purchaseAmount * 0.08);
+  const totalSales = Math.round(b.purchaseAmount * (b.status === "SOLD" ? 1.32 : 0.4));
+  const totalCost = b.purchaseAmount + labourCost + transportCost;
+  return {
+    batchId: b.id, batchNumber: b.batchNumber, productId: b.productId, productName: b.productName,
+    purchase: b.purchaseAmount, labourCost, transportCost, totalSales, totalCost, profit: totalSales - totalCost,
+  };
+}
+
+function setPoStatus(id: string, status: string): Promise<PurchaseOrderDto> {
+  const po = purchaseOrders.find((p) => p.id === id)!;
+  po.status = status;
+  return wait(clone(po));
+}
+
 /* A 1×1 transparent PNG stand-in so "view attachment" opens something in demo mode. */
 const RECEIPT_STUB =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='560'%3E%3Crect width='420' height='560' fill='%23f1f5f9'/%3E%3Crect x='40' y='40' width='340' height='480' rx='10' fill='white' stroke='%23cbd5e1'/%3E%3Ctext x='210' y='120' font-family='Arial' font-size='22' font-weight='700' fill='%230b1220' text-anchor='middle'%3EDEMO RECEIPT%3C/text%3E%3Ctext x='210' y='160' font-family='Arial' font-size='13' fill='%2364748b' text-anchor='middle'%3ESample attachment (no backend)%3C/text%3E%3C/svg%3E";
@@ -363,6 +461,107 @@ export const demoApi = {
     const cust = customers.find((c) => c.id === cr.customerId);
     if (cust) cust.outstanding = Math.max(0, cust.outstanding - amount);
     return wait(clone(cr));
+  },
+
+  // CCTV / Electronics
+  items: (): Promise<ItemDto[]> => wait(clone(items)),
+  createItem: (input: CreateItemInput): Promise<ItemDto> => {
+    const it: ItemDto = {
+      id: uid("it"), itemCode: input.itemCode, itemName: input.itemName, uom: input.uom,
+      hsnCode: input.hsnCode ?? null, rate: input.rate, taxPercentage: input.taxPercentage,
+      stockQuantity: 0, reorderLevel: input.reorderLevel, isActive: true,
+    };
+    items.unshift(it);
+    return wait(clone(it));
+  },
+  suppliers: (): Promise<SupplierDto[]> => wait(clone(suppliers)),
+  createSupplier: (input: CreateSupplierInput): Promise<SupplierDto> => {
+    const s: SupplierDto = {
+      id: uid("sup"), name: input.name, mobile: input.mobile ?? null,
+      gstNumber: input.gstNumber ?? null, address: input.address ?? null,
+    };
+    suppliers.push(s);
+    return wait(clone(s));
+  },
+  purchaseOrders: (_status?: string): Promise<PurchaseOrderDto[]> => wait(clone(purchaseOrders)),
+  poSubmit: (id: string): Promise<PurchaseOrderDto> => setPoStatus(id, "SUBMITTED"),
+  poApprove: (id: string): Promise<PurchaseOrderDto> => setPoStatus(id, "APPROVED"),
+  poReceive: (id: string): Promise<PurchaseOrderDto> => setPoStatus(id, "RECEIVED"),
+  cctvSales: (_from?: string, _to?: string): Promise<SaleDto[]> => wait(clone(cctvSales)),
+  serviceComplaints: (_status?: string): Promise<ServiceComplaintDto[]> => wait(clone(serviceComplaints)),
+  createServiceComplaint: (input: CreateServiceComplaintInput): Promise<ServiceComplaintDto> => {
+    const cust = customers.find((c) => c.id === input.customerId);
+    const s: ServiceComplaintDto = {
+      id: uid("sc"), complaintNumber: input.complaintNumber, customerId: input.customerId,
+      customerName: cust?.name ?? null, issueDescription: input.issueDescription ?? null,
+      assignedEmployeeId: input.assignedEmployeeId ?? null, assignedEmployeeName: null,
+      status: "OPEN", openedAt: "2026-07-21T09:00:00Z", closedAt: null,
+    };
+    serviceComplaints.unshift(s);
+    return wait(clone(s));
+  },
+  updateServiceStatus: (id: string, status: string): Promise<ServiceComplaintDto> => {
+    const s = serviceComplaints.find((x) => x.id === id)!;
+    s.status = status;
+    s.closedAt = status === "RESOLVED" ? "2026-07-21T15:00:00Z" : null;
+    return wait(clone(s));
+  },
+
+  // Farm
+  farmBatches: (_status?: string): Promise<FarmBatchDto[]> => wait(clone(farmBatches)),
+  createFarmBatch: (input: CreateFarmBatchInput): Promise<FarmBatchDto> => {
+    const b: FarmBatchDto = {
+      id: uid("fb"), batchNumber: input.batchNumber, batchName: input.batchName ?? null,
+      animalType: input.animalType, startDate: input.startDate,
+      quantityPurchased: input.quantityPurchased, purchaseAmount: input.purchaseAmount, status: "ACTIVE",
+    };
+    farmBatches.unshift(b);
+    return wait(clone(b));
+  },
+  farmBatchPnl: (id: string): Promise<FarmBatchPnlDto> => {
+    const b = farmBatches.find((x) => x.id === id) ?? farmBatches[0];
+    return wait(farmPnl(b));
+  },
+  farmBatchSales: (id: string): Promise<FarmBatchSaleDto[]> =>
+    wait([
+      { id: uid("bs"), batchId: id, saleDate: "2026-07-18", saleQuantity: 800, totalWeight: 1600, saleAmount: 152000, customerId: null },
+      { id: uid("bs"), batchId: id, saleDate: "2026-07-10", saleQuantity: 600, totalWeight: 1140, saleAmount: 108000, customerId: null },
+    ]),
+  feeds: (): Promise<FeedDto[]> => wait(clone(feeds)),
+  createFeed: (input: CreateFeedInput): Promise<FeedDto> => {
+    const f: FeedDto = {
+      id: uid("fd"), feedName: input.feedName, feedType: input.feedType ?? null,
+      uom: input.uom, rate: input.rate, isActive: true,
+    };
+    feeds.push(f);
+    return wait(clone(f));
+  },
+  wallet: (): Promise<WalletDto> => wait({ balance: walletBalance }),
+  walletTransactions: (): Promise<WalletTransactionDto[]> => wait(clone(walletTxns)),
+
+  // Coconut
+  coconutBatches: (_status?: string): Promise<CoconutBatchDto[]> => wait(clone(coconutBatches)),
+  createCoconutBatch: (input: CreateCoconutBatchInput): Promise<CoconutBatchDto> => {
+    const prod = products.find((p) => p.id === input.productId);
+    const b: CoconutBatchDto = {
+      id: uid("cb"), productId: input.productId, productName: prod?.name ?? null,
+      batchNumber: input.batchNumber, purchaseDate: input.purchaseDate,
+      quantity: input.quantity, purchaseAmount: input.purchaseAmount, status: "ACTIVE",
+    };
+    coconutBatches.unshift(b);
+    return wait(clone(b));
+  },
+  coconutBatchPnl: (id: string): Promise<CoconutBatchPnlDto> => {
+    const b = coconutBatches.find((x) => x.id === id) ?? coconutBatches[0];
+    return wait(coconutPnl(b));
+  },
+  products: (): Promise<CoconutProductDto[]> => wait(clone(products)),
+  createProduct: (input: CreateProductInput): Promise<CoconutProductDto> => {
+    const p: CoconutProductDto = {
+      id: uid("pr"), name: input.name, category: input.category ?? null, uom: input.uom, isActive: true,
+    };
+    products.push(p);
+    return wait(clone(p));
   },
 
   // Files — no storage in demo; return stubs.

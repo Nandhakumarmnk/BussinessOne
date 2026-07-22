@@ -8,6 +8,19 @@ export const initials = (name: string) =>
 
 export const today = () => new Date().toISOString().slice(0, 10);
 
+/** Human label for an UPPER_SNAKE status code, e.g. IN_PROGRESS → "In progress". */
+export const prettyStatus = (s: string) =>
+  s.replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
+
+/** Maps a status code to a badge className (green = done, blue = in-flight, grey = new). */
+export function statusBadgeClass(status: string): string {
+  const s = status.toUpperCase();
+  if (["PAID", "RECEIVED", "RESOLVED", "CLEARED", "APPROVED", "ACTIVE", "SOLD", "CLOSED"].includes(s))
+    return "badge badge--ok";
+  if (["SUBMITTED", "PARTIAL", "IN_PROGRESS", "PENDING"].includes(s)) return "badge badge--owner";
+  return "badge";
+}
+
 /* -------------------------------------------------------------------------- */
 /* Icons (Lucide-style, inline so there is no runtime dependency)             */
 /* -------------------------------------------------------------------------- */
@@ -31,6 +44,9 @@ const PATHS: Record<string, string> = {
   trash: "M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V6",
   contact: "M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M20 8v6M23 11h-6",
   close: "M18 6 6 18M6 6l12 12",
+  camera: "M23 7l-7 5 7 5V7zM14 5H3a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Z",
+  leaf: "M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10ZM2 21c0-3 1.85-5.36 5.08-6",
+  package: "M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5",
 };
 
 export function Icon({ name, className = "icon" }: { name: string; className?: string }) {

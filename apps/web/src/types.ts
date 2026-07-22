@@ -168,3 +168,183 @@ export interface CreditDto {
   balanceAmount: number;
   status: string;
 }
+
+/* ---- CCTV (Electronics) ---- */
+export interface ItemDto {
+  id: string;
+  itemCode: string;
+  itemName: string;
+  uom: string;
+  hsnCode: string | null;
+  rate: number;
+  taxPercentage: number;
+  stockQuantity: number;
+  reorderLevel: number;
+  isActive: boolean;
+}
+
+export interface SupplierDto {
+  id: string;
+  name: string;
+  mobile: string | null;
+  gstNumber: string | null;
+  address: string | null;
+}
+
+export interface PoLineDto {
+  id: string;
+  itemId: string;
+  quantity: number;
+  rate: number;
+  taxPercentage: number;
+  lineTotal: number;
+}
+
+export interface PurchaseOrderDto {
+  id: string;
+  poNumber: string;
+  supplierId: string;
+  supplierName: string | null;
+  poDate: string;
+  totalAmount: number;
+  status: string;
+  lines: PoLineDto[];
+}
+
+export interface SaleLineDto {
+  id: string;
+  itemId: string;
+  quantity: number;
+  rate: number;
+  taxPercentage: number;
+  lineTotal: number;
+}
+
+export interface SaleDto {
+  id: string;
+  invoiceNumber: string;
+  customerId: string | null;
+  customerName: string | null;
+  saleDate: string;
+  installationCharges: number;
+  labourCharges: number;
+  subTotal: number;
+  taxAmount: number;
+  totalAmount: number;
+  paidAmount: number;
+  balance: number;
+  status: string;
+  lines: SaleLineDto[];
+}
+
+export interface ServiceComplaintDto {
+  id: string;
+  complaintNumber: string;
+  customerId: string;
+  customerName: string | null;
+  issueDescription: string | null;
+  assignedEmployeeId: string | null;
+  assignedEmployeeName: string | null;
+  status: string;
+  openedAt: string;
+  closedAt: string | null;
+}
+
+/* ---- Farm ---- */
+export interface FarmBatchDto {
+  id: string;
+  batchNumber: string;
+  batchName: string | null;
+  animalType: string;
+  startDate: string;
+  quantityPurchased: number;
+  purchaseAmount: number;
+  status: string;
+}
+
+export interface FarmBatchSaleDto {
+  id: string;
+  batchId: string;
+  saleDate: string;
+  saleQuantity: number;
+  totalWeight: number | null;
+  saleAmount: number;
+  customerId: string | null;
+}
+
+export interface FeedDto {
+  id: string;
+  feedName: string;
+  feedType: string | null;
+  uom: string;
+  rate: number;
+  isActive: boolean;
+}
+
+export interface WalletDto {
+  balance: number;
+}
+
+export interface WalletTransactionDto {
+  id: string;
+  txnDate: string;
+  direction: string;
+  amount: number;
+  reason: string | null;
+}
+
+export interface FarmBatchPnlDto {
+  batchId: string;
+  batchNumber: string;
+  batchName: string | null;
+  purchase: number;
+  feedCost: number;
+  medicalCost: number;
+  labourCost: number;
+  otherCost: number;
+  totalSales: number;
+  totalCost?: number;
+  profit?: number;
+}
+
+/* ---- Coconut ---- */
+export interface CoconutProductDto {
+  id: string;
+  name: string;
+  category: string | null;
+  uom: string;
+  isActive: boolean;
+}
+
+export interface CoconutBatchDto {
+  id: string;
+  productId: string;
+  productName: string | null;
+  batchNumber: string;
+  purchaseDate: string;
+  quantity: number;
+  purchaseAmount: number;
+  status: string;
+}
+
+export interface CoconutSaleDto {
+  id: string;
+  batchId: string;
+  saleDate: string;
+  saleQuantity: number;
+  saleValue: number;
+  customerId: string | null;
+}
+
+export interface CoconutBatchPnlDto {
+  batchId: string;
+  batchNumber: string;
+  productId: string;
+  productName: string | null;
+  purchase: number;
+  labourCost: number;
+  transportCost: number;
+  totalSales: number;
+  totalCost?: number;
+  profit?: number;
+}

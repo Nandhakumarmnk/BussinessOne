@@ -6,6 +6,9 @@ import { DonutChart, Sparkline, TrendChart } from "./charts";
 import { ExpensesScreen } from "./screens/Expenses";
 import { CustomersScreen } from "./screens/Customers";
 import { TransportScreen } from "./screens/Transport";
+import { CctvScreen } from "./screens/Cctv";
+import { FarmScreen } from "./screens/Farm";
+import { CoconutScreen } from "./screens/Coconut";
 
 export function App() {
   const [user, setUser] = useState<UserSummary | null>(null);
@@ -159,13 +162,20 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
 
   const active = businesses.find((b) => b.id === activeId) ?? null;
 
-  const isTransport = active?.businessTypeCode === "TRANSPORT";
+  // The one vertical module that applies to the active business type.
+  const typeCode = active?.businessTypeCode;
+  const vertical =
+    typeCode === "TRANSPORT" ? { id: "transport", label: "Transport", icon: "truck" }
+    : typeCode === "CCTV" ? { id: "cctv", label: "CCTV", icon: "camera" }
+    : typeCode === "FARM" ? { id: "farm", label: "Farm", icon: "leaf" }
+    : typeCode === "COCONUT" ? { id: "coconut", label: "Coconut", icon: "package" }
+    : null;
 
   // Fall back to the dashboard if the active business can't show the current module
-  // (e.g. the user switched away from a Transport business while on the Transport tab).
+  // (e.g. the user switched to a different business type while on a vertical tab).
   useEffect(() => {
-    if (nav === "transport" && !isTransport) setNav("dashboard");
-  }, [nav, isTransport]);
+    if (["transport", "cctv", "farm", "coconut"].includes(nav) && vertical?.id !== nav) setNav("dashboard");
+  }, [nav, vertical?.id]);
 
   // Auto-dismiss the error toast after a few seconds.
   useEffect(() => {
@@ -182,7 +192,7 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
   const operationsNav = [
     { id: "expenses", label: "Expenses", icon: "receipt" },
     { id: "customers", label: "Customers", icon: "contact" },
-    ...(isTransport ? [{ id: "transport", label: "Transport", icon: "truck" }] : []),
+    ...(vertical ? [vertical] : []),
   ];
   const activeLabel =
     [...workspaceNav, ...operationsNav].find((i) => i.id === nav)?.label ?? "Workspace";
@@ -193,7 +203,7 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
     </div>
   );
 
-  const needsBusiness = nav === "expenses" || nav === "customers" || nav === "transport";
+  const needsBusiness = ["expenses", "customers", "transport", "cctv", "farm", "coconut"].includes(nav);
 
   return (
     <div className="layout">
@@ -292,6 +302,9 @@ function Console({ user, onLogout }: { user: UserSummary; onLogout: () => void }
           {nav === "expenses" && activeId && <ExpensesScreen key={activeId} setError={setError} />}
           {nav === "customers" && activeId && <CustomersScreen key={activeId} setError={setError} />}
           {nav === "transport" && activeId && <TransportScreen key={activeId} setError={setError} />}
+          {nav === "cctv" && activeId && <CctvScreen key={activeId} setError={setError} />}
+          {nav === "farm" && activeId && <FarmScreen key={activeId} setError={setError} />}
+          {nav === "coconut" && activeId && <CoconutScreen key={activeId} setError={setError} />}
         </main>
       </div>
     </div>
