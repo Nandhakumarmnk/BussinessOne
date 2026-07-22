@@ -210,6 +210,21 @@ export interface CreateProductInput {
   uom: string;
 }
 
+export interface PoLineInput {
+  itemId: string;
+  quantity: number;
+  rate: number;
+  taxPercentage: number;
+}
+
+export interface CreatePurchaseOrderInput {
+  poNumber: string;
+  supplierId: string;
+  poDate: string;
+  note?: string | null;
+  lines: PoLineInput[];
+}
+
 const liveApi = {
   // ---- Auth ----
   login: (mobileOrEmail: string, password: string) =>
@@ -279,6 +294,8 @@ const liveApi = {
   createSupplier: (input: CreateSupplierInput) =>
     request<SupplierDto>("/cctv/suppliers", { method: "POST", body: JSON.stringify(input) }),
   purchaseOrders: (status?: string) => request<PurchaseOrderDto[]>(`/cctv/purchase-orders${qs({ status })}`),
+  createPurchaseOrder: (input: CreatePurchaseOrderInput) =>
+    request<PurchaseOrderDto>("/cctv/purchase-orders", { method: "POST", body: JSON.stringify(input) }),
   poSubmit: (id: string) => request<PurchaseOrderDto>(`/cctv/purchase-orders/${id}/submit`, { method: "POST" }),
   poApprove: (id: string) => request<PurchaseOrderDto>(`/cctv/purchase-orders/${id}/approve`, { method: "POST" }),
   poReceive: (id: string) => request<PurchaseOrderDto>(`/cctv/purchase-orders/${id}/receive`, { method: "POST" }),

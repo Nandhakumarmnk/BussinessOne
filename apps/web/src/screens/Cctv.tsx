@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import type { CustomerDto, ItemDto, PurchaseOrderDto, SaleDto, ServiceComplaintDto } from "../types";
-import { Icon, inr, ListSkeleton, prettyStatus, statusBadgeClass } from "../ui";
+import type { CustomerDto, ItemDto, PurchaseOrderDto, SaleDto, ServiceComplaintDto, SupplierDto } from "../types";
+import { Icon, inr, ListSkeleton, prettyStatus, statusBadgeClass, today } from "../ui";
 
 type Tab = "items" | "orders" | "sales" | "service";
 
@@ -12,14 +12,15 @@ export function CctvScreen({ setError }: { setError: (e: string | null) => void 
   const [sales, setSales] = useState<SaleDto[]>([]);
   const [service, setService] = useState<ServiceComplaintDto[]>([]);
   const [customers, setCustomers] = useState<CustomerDto[]>([]);
+  const [suppliers, setSuppliers] = useState<SupplierDto[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function loadAll() {
     try {
-      const [i, o, s, sv, c] = await Promise.all([
-        api.items(), api.purchaseOrders(), api.cctvSales(), api.serviceComplaints(), api.customers(),
+      const [i, o, s, sv, c, sup] = await Promise.all([
+        api.items(), api.purchaseOrders(), api.cctvSales(), api.serviceComplaints(), api.customers(), api.suppliers(),
       ]);
-      setItems(i); setOrders(o); setSales(s); setService(sv); setCustomers(c);
+      setItems(i); setOrders(o); setSales(s); setService(sv); setCustomers(c); setSuppliers(sup);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load CCTV data");
     } finally {
@@ -53,7 +54,7 @@ export function CctvScreen({ setError }: { setError: (e: string | null) => void 
       {loading ? <ListSkeleton /> : (
         <>
           {tab === "items" && <ItemsTab items={items} setError={setError} reload={loadAll} />}
-          {tab === "orders" && <OrdersTab orders={orders} setError={setError} reload={loadAll} />}
+          {tab === "orders" && <OrdersTab orders={orders} suppliers={suppliers} items={items} setError={setError} reload={loadAll} />}
           {tab === "sales" && <SalesTab sales={sales} />}
           {tab === "service" && <ServiceTab service={service} customers={customers} setError={setError} reload={loadAll} />}
         </>
@@ -155,8 +156,9 @@ function ItemsTab({ items, setError, reload }: {
 }
 
 /* -------------------------------------------------------------------------- */
-function OrdersTab({ orders, setError, reload }: {
-  orders: PurchaseOrderDto[]; setError: (e: string | null) => void; reload: () => Promise<void>;
+function OrdersTab({ orders, suppliers, items, setError, reload }: {
+  orders: PurchaseOrderDto[]; suppliers: SupplierDto[]; items: ItemDto[];
+  setError: (e: string | null) => void; reload: () => Promise<void>;
 }) {
   async function act(id: string, action: "submit" | "approve" | "receive") {
     setError(null);
@@ -174,29 +176,117 @@ function OrdersTab({ orders, setError, reload }: {
   };
 
   return (
-    <div className="card">
-      <div className="card__head"><Icon name="card" /><span className="card__title">Purchase orders</span>
-        <span className="count">{orders.length}</span></div>
-      <div className="card__body"><div className="rows">
-        {orders.map((o) => {
-          const action = next[o.status.toUpperCase()];
-          return (
-            <div key={o.id} className="row">
-              <div className="row__main">
-                <div className="row__title">{o.poNumber}<span className="dot">·</span>{o.supplierName ?? "Supplier"}</div>
-                <div className="row__sub">{o.poDate}<span className="dot">·</span>{inr(o.totalAmount)}</div>
+    <div className="cols">
+      <div className="card">
+        <div className="card__head"><Icon name="card" /><span className="card__title">Purchase orders</span>
+          <span className="count">{orders.length}</span></div>
+        <div className="card__body"><div className="rows">
+          {orders.map((o) => {
+            const action = next[o.status.toUpperCase()];
+            return (
+              <div key={o.id} className="row">
+                <div className="row__main">
+                  <div className="row__title">{o.poNumber}<span className="dot">·</span>{o.supplierName ?? "Supplier"}</div>
+                  <div className="row__sub">{o.poDate}<span className="dot">·</span>{inr(o.totalAmount)}<span className="dot">·</span>{o.lines.length} line(s)</div>
+                </div>
+                <span className={statusBadgeClass(o.status)}>{prettyStatus(o.status)}</span>
+                {action && (
+                  <button className="btn btn--ghost" onClick={() => act(o.id, action)}>
+                    {action === "submit" ? "Submit" : action === "approve" ? "Approve" : "Receive"}
+                  </button>
+                )}
               </div>
-              <span className={statusBadgeClass(o.status)}>{prettyStatus(o.status)}</span>
-              {action && (
-                <button className="btn btn--ghost" onClick={() => act(o.id, action)}>
-                  {action === "submit" ? "Submit" : action === "approve" ? "Approve" : "Receive"}
-                </button>
+            );
+          })}
+          {orders.length === 0 && <div className="empty">No purchase orders yet.</div>}
+        </div></div>
+      </div>
+
+      <NewPoCard suppliers={suppliers} items={items} setError={setError} reload={reload} />
+    </div>
+  );
+}
+
+function NewPoCard({ suppliers, items, setError, reload }: {
+  suppliers: SupplierDto[]; items: ItemDto[]; setError: (e: string | null) => void; reload: () => Promise<void>;
+}) {
+  const [poNumber, setPoNumber] = useState("");
+  const [supplierId, setSupplierId] = useState("");
+  const [poDate, setPoDate] = useState(today());
+  const [lines, setLines] = useState<{ itemId: string; qty: string }[]>([{ itemId: "", qty: "" }]);
+  const [busy, setBusy] = useState(false);
+
+  const lineTotal = (l: { itemId: string; qty: string }) => {
+    const it = items.find((i) => i.id === l.itemId);
+    return it ? Number(l.qty || 0) * it.rate * (1 + it.taxPercentage / 100) : 0;
+  };
+  const total = lines.reduce((s, l) => s + lineTotal(l), 0);
+
+  const setLine = (idx: number, patch: Partial<{ itemId: string; qty: string }>) =>
+    setLines((ls) => ls.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+
+  async function create(e: React.FormEvent) {
+    e.preventDefault();
+    const valid = lines
+      .filter((l) => l.itemId && Number(l.qty) > 0)
+      .map((l) => {
+        const it = items.find((i) => i.id === l.itemId)!;
+        return { itemId: l.itemId, quantity: Number(l.qty), rate: it.rate, taxPercentage: it.taxPercentage };
+      });
+    if (!poNumber || !supplierId || valid.length === 0) { setError("PO number, supplier and at least one line are required."); return; }
+    setBusy(true); setError(null);
+    try {
+      await api.createPurchaseOrder({ poNumber, supplierId, poDate, lines: valid });
+      setPoNumber(""); setLines([{ itemId: "", qty: "" }]);
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create PO");
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="card">
+      <div className="card__head"><Icon name="plus" /><span className="card__title">New purchase order</span></div>
+      <div className="card__body">
+        <form className="form" onSubmit={create}>
+          <div className="form--inline">
+            <div className="field"><label>PO #</label>
+              <input className="input" value={poNumber} onChange={(e) => setPoNumber(e.target.value)} required /></div>
+            <div className="field"><label>Date</label>
+              <input className="input" type="date" value={poDate} onChange={(e) => setPoDate(e.target.value)} /></div>
+          </div>
+          <div className="field"><label>Supplier</label>
+            <select className="select" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} required>
+              <option value="">— Select —</option>
+              {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select></div>
+
+          <div className="form__divider">Line items</div>
+          {lines.map((l, idx) => (
+            <div key={idx} className="form--inline" style={{ alignItems: "flex-end" }}>
+              <div className="field" style={{ flex: 2 }}><label>Item</label>
+                <select className="select" value={l.itemId} onChange={(e) => setLine(idx, { itemId: e.target.value })}>
+                  <option value="">— Select —</option>
+                  {items.map((it) => <option key={it.id} value={it.id}>{it.itemName}</option>)}
+                </select></div>
+              <div className="field"><label>Qty</label>
+                <input className="input" type="number" min="0" value={l.qty} onChange={(e) => setLine(idx, { qty: e.target.value })} /></div>
+              <div className="field" style={{ flex: "0 0 90px" }}><label>Amount</label>
+                <input className="input" value={lineTotal(l) ? inr(lineTotal(l)) : "—"} readOnly /></div>
+              {lines.length > 1 && (
+                <button type="button" className="iconbtn" title="Remove line"
+                        onClick={() => setLines((ls) => ls.filter((_, i) => i !== idx))}><Icon name="trash" /></button>
               )}
             </div>
-          );
-        })}
-        {orders.length === 0 && <div className="empty">No purchase orders yet.</div>}
-      </div></div>
+          ))}
+          <button type="button" className="btn btn--ghost" onClick={() => setLines((ls) => [...ls, { itemId: "", qty: "" }])}>
+            <Icon name="plus" />Add line
+          </button>
+
+          <div className="pnl-total is-pos"><span>Total</span><span>{inr(total)}</span></div>
+          <button className="btn btn--block" disabled={busy}><Icon name="plus" />{busy ? "Creating…" : "Create PO (draft)"}</button>
+        </form>
+      </div>
     </div>
   );
 }

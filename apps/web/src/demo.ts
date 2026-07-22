@@ -10,8 +10,8 @@
 import type {
   CreateBusinessInput, CreateCoconutBatchInput, CreateCustomerInput, CreateDriverInput,
   CreateExpenseInput, CreateFarmBatchInput, CreateFeedInput, CreateItemInput, CreateLoadInput,
-  CreateProductInput, CreateServiceComplaintInput, CreateSupplierInput, CreateVehicleInput,
-  InviteUserInput, RecordCollectionInput,
+  CreateProductInput, CreatePurchaseOrderInput, CreateServiceComplaintInput, CreateSupplierInput,
+  CreateVehicleInput, InviteUserInput, RecordCollectionInput,
 } from "./api";
 import type {
   AccountDto, BusinessDto, CashBookRowDto, CoconutBatchDto, CoconutBatchPnlDto, CoconutProductDto,
@@ -508,6 +508,19 @@ export const demoApi = {
     return wait(clone(s));
   },
   purchaseOrders: (_status?: string): Promise<PurchaseOrderDto[]> => wait(clone(purchaseOrders)),
+  createPurchaseOrder: (input: CreatePurchaseOrderInput): Promise<PurchaseOrderDto> => {
+    const sup = suppliers.find((s) => s.id === input.supplierId);
+    const lines = input.lines.map((l) => ({
+      id: uid("pol"), itemId: l.itemId, quantity: l.quantity, rate: l.rate,
+      taxPercentage: l.taxPercentage, lineTotal: Math.round(l.quantity * l.rate * (1 + l.taxPercentage / 100)),
+    }));
+    const po: PurchaseOrderDto = {
+      id: uid("po"), poNumber: input.poNumber, supplierId: input.supplierId, supplierName: sup?.name ?? null,
+      poDate: input.poDate, totalAmount: lines.reduce((s, l) => s + l.lineTotal, 0), status: "DRAFT", lines,
+    };
+    purchaseOrders.unshift(po);
+    return wait(clone(po));
+  },
   poSubmit: (id: string): Promise<PurchaseOrderDto> => setPoStatus(id, "SUBMITTED"),
   poApprove: (id: string): Promise<PurchaseOrderDto> => setPoStatus(id, "APPROVED"),
   poReceive: (id: string): Promise<PurchaseOrderDto> => setPoStatus(id, "RECEIVED"),
