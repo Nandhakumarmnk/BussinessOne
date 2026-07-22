@@ -8,6 +8,8 @@ type Tab = "pnl" | "cashbook" | "journal" | "ledger";
 
 export function AccountingScreen({ setError }: { setError: (e: string | null) => void }) {
   const [tab, setTab] = useState<Tab>("pnl");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: "pnl", label: "Profit & Loss", icon: "up" },
@@ -31,28 +33,37 @@ export function AccountingScreen({ setError }: { setError: (e: string | null) =>
         ))}
       </div>
 
-      {tab === "pnl" && <PnlTab setError={setError} />}
-      {tab === "cashbook" && <CashBookTab setError={setError} />}
-      {tab === "journal" && <JournalTab setError={setError} />}
-      {tab === "ledger" && <LedgerTab setError={setError} />}
+      <div className="filterbar">
+        <div className="field"><label>From</label>
+          <input className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
+        <div className="field"><label>To</label>
+          <input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+        <button className="btn btn--ghost" disabled={!from && !to} onClick={() => { setFrom(""); setTo(""); }}>Clear</button>
+      </div>
+
+      {tab === "pnl" && <PnlTab from={from} to={to} setError={setError} />}
+      {tab === "cashbook" && <CashBookTab from={from} to={to} setError={setError} />}
+      {tab === "journal" && <JournalTab from={from} to={to} setError={setError} />}
+      {tab === "ledger" && <LedgerTab from={from} to={to} setError={setError} />}
     </section>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-function PnlTab({ setError }: { setError: (e: string | null) => void }) {
+function PnlTab({ from, to, setError }: { from: string; to: string; setError: (e: string | null) => void }) {
   const [pl, setPl] = useState<ProfitLossDto | null>(null);
   const [busy, setBusy] = useState<"pdf" | "excel" | null>(null);
 
   useEffect(() => {
-    api.profitLoss()
+    setPl(null);
+    api.profitLoss(from || undefined, to || undefined)
       .then(setPl)
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load P&L"));
-  }, [setError]);
+  }, [from, to, setError]);
 
   async function exportAs(format: "pdf" | "excel") {
     setBusy(format); setError(null);
-    try { await api.exportReport("profit-loss", format); }
+    try { await api.exportReport("profit-loss", format, from || undefined, to || undefined); }
     catch (err) { setError(err instanceof Error ? err.message : "Export failed"); }
     finally { setBusy(null); }
   }
@@ -99,13 +110,13 @@ function PnlTab({ setError }: { setError: (e: string | null) => void }) {
 }
 
 /* -------------------------------------------------------------------------- */
-function CashBookTab({ setError }: { setError: (e: string | null) => void }) {
+function CashBookTab({ from, to, setError }: { from: string; to: string; setError: (e: string | null) => void }) {
   const [rows, setRows] = useState<CashBookRowDto[]>([]);
   useEffect(() => {
-    api.cashBook()
+    api.cashBook(from || undefined, to || undefined)
       .then(setRows)
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load cash book"));
-  }, [setError]);
+  }, [from, to, setError]);
 
   return (
     <div className="card">
@@ -130,13 +141,13 @@ function CashBookTab({ setError }: { setError: (e: string | null) => void }) {
 }
 
 /* -------------------------------------------------------------------------- */
-function JournalTab({ setError }: { setError: (e: string | null) => void }) {
+function JournalTab({ from, to, setError }: { from: string; to: string; setError: (e: string | null) => void }) {
   const [txns, setTxns] = useState<JournalTxnDto[]>([]);
   useEffect(() => {
-    api.journal()
+    api.journal(from || undefined, to || undefined)
       .then(setTxns)
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load journal"));
-  }, [setError]);
+  }, [from, to, setError]);
 
   return (
     <div className="card">
@@ -166,7 +177,7 @@ function JournalTab({ setError }: { setError: (e: string | null) => void }) {
 }
 
 /* -------------------------------------------------------------------------- */
-function LedgerTab({ setError }: { setError: (e: string | null) => void }) {
+function LedgerTab({ from, to, setError }: { from: string; to: string; setError: (e: string | null) => void }) {
   const [accounts, setAccounts] = useState<AccountDto[]>([]);
   const [accountId, setAccountId] = useState("");
   const [lines, setLines] = useState<LedgerLineDto[]>([]);
@@ -179,10 +190,10 @@ function LedgerTab({ setError }: { setError: (e: string | null) => void }) {
 
   useEffect(() => {
     if (!accountId) return;
-    api.ledger(accountId)
+    api.ledger(accountId, from || undefined, to || undefined)
       .then(setLines)
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load ledger"));
-  }, [accountId, setError]);
+  }, [accountId, from, to, setError]);
 
   return (
     <div className="card">
