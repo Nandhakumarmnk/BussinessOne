@@ -12,8 +12,8 @@ import type {
   AddTransportChargeInput, CreateBusinessInput, CreateCoconutBatchInput, CreateCustomerInput,
   CreateDriverInput, CreateEmployeeInput, CreateExpenseInput, CreateFarmBatchInput, CreateFeedInput,
   CreateItemInput, CreateLoadInput, CreateProductInput, CreatePurchaseOrderInput,
-  CreateServiceComplaintInput, CreateSupplierInput, CreateVehicleInput, InviteUserInput,
-  RecordCollectionInput, RecordSalaryInput,
+  CreateSaleInput, CreateServiceComplaintInput, CreateSupplierInput, CreateVehicleInput,
+  InviteUserInput, RecordCollectionInput, RecordSalaryInput,
 } from "./api";
 import type {
   AccountDto, BusinessDto, CashBookRowDto, CoconutBatchDto, CoconutBatchPnlDto, CoconutProductDto,
@@ -551,6 +551,27 @@ export const demoApi = {
   poApprove: (id: string): Promise<PurchaseOrderDto> => setPoStatus(id, "APPROVED"),
   poReceive: (id: string): Promise<PurchaseOrderDto> => setPoStatus(id, "RECEIVED"),
   cctvSales: (_from?: string, _to?: string): Promise<SaleDto[]> => wait(clone(cctvSales)),
+  createSale: (input: CreateSaleInput): Promise<SaleDto> => {
+    const cust = customers.find((c) => c.id === input.customerId);
+    const lines = input.lines.map((l) => {
+      const net = l.quantity * l.rate;
+      return { id: uid("sll"), itemId: l.itemId, quantity: l.quantity, rate: l.rate,
+        taxPercentage: l.taxPercentage, lineTotal: Math.round(net * (1 + l.taxPercentage / 100)) };
+    });
+    const goodsNet = input.lines.reduce((s, l) => s + l.quantity * l.rate, 0);
+    const taxAmount = Math.round(input.lines.reduce((s, l) => s + l.quantity * l.rate * (l.taxPercentage / 100), 0));
+    const subTotal = Math.round(goodsNet + input.installationCharges + input.labourCharges);
+    const totalAmount = subTotal + taxAmount;
+    const balance = Math.max(0, totalAmount - input.paidAmount);
+    const sale: SaleDto = {
+      id: uid("sl"), invoiceNumber: input.invoiceNumber, customerId: input.customerId ?? null,
+      customerName: cust?.name ?? null, saleDate: input.saleDate, installationCharges: input.installationCharges,
+      labourCharges: input.labourCharges, subTotal, taxAmount, totalAmount, paidAmount: input.paidAmount,
+      balance, status: balance === 0 ? "PAID" : input.paidAmount > 0 ? "PARTIAL" : "PENDING", lines,
+    };
+    cctvSales.unshift(sale);
+    return wait(clone(sale));
+  },
   serviceComplaints: (_status?: string): Promise<ServiceComplaintDto[]> => wait(clone(serviceComplaints)),
   createServiceComplaint: (input: CreateServiceComplaintInput): Promise<ServiceComplaintDto> => {
     const cust = customers.find((c) => c.id === input.customerId);

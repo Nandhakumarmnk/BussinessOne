@@ -226,6 +226,18 @@ export interface CreatePurchaseOrderInput {
   lines: PoLineInput[];
 }
 
+export interface SaleLineInput { itemId: string; quantity: number; rate: number; taxPercentage: number; }
+export interface CreateSaleInput {
+  invoiceNumber: string;
+  customerId?: string | null;
+  saleDate: string;
+  installationCharges: number;
+  labourCharges: number;
+  paidAmount: number;
+  mode: string;
+  lines: SaleLineInput[];
+}
+
 export interface AddFeedEntryInput { feedId: string; entryDate: string; quantity: number; rate: number; }
 export interface AddBatchSaleInput {
   saleDate: string; saleQuantity: number; totalWeight?: number | null; saleAmount: number; customerId?: string | null;
@@ -326,6 +338,8 @@ const liveApi = {
   poApprove: (id: string) => request<PurchaseOrderDto>(`/cctv/purchase-orders/${id}/approve`, { method: "POST" }),
   poReceive: (id: string) => request<PurchaseOrderDto>(`/cctv/purchase-orders/${id}/receive`, { method: "POST" }),
   cctvSales: (from?: string, to?: string) => request<SaleDto[]>(`/cctv/sales${qs({ from, to })}`),
+  createSale: (input: CreateSaleInput) =>
+    request<SaleDto>("/cctv/sales", { method: "POST", body: JSON.stringify(input) }),
   serviceComplaints: (status?: string) => request<ServiceComplaintDto[]>(`/cctv/service-complaints${qs({ status })}`),
   createServiceComplaint: (input: CreateServiceComplaintInput) =>
     request<ServiceComplaintDto>("/cctv/service-complaints", { method: "POST", body: JSON.stringify(input) }),

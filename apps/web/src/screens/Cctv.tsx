@@ -55,7 +55,7 @@ export function CctvScreen({ setError }: { setError: (e: string | null) => void 
         <>
           {tab === "items" && <ItemsTab items={items} setError={setError} reload={loadAll} />}
           {tab === "orders" && <OrdersTab orders={orders} suppliers={suppliers} items={items} setError={setError} reload={loadAll} />}
-          {tab === "sales" && <SalesTab sales={sales} />}
+          {tab === "sales" && <SalesTab sales={sales} customers={customers} items={items} setError={setError} reload={loadAll} />}
           {tab === "service" && <ServiceTab service={service} customers={customers} setError={setError} reload={loadAll} />}
         </>
       )}
@@ -292,24 +292,140 @@ function NewPoCard({ suppliers, items, setError, reload }: {
 }
 
 /* -------------------------------------------------------------------------- */
-function SalesTab({ sales }: { sales: SaleDto[] }) {
+function SalesTab({ sales, customers, items, setError, reload }: {
+  sales: SaleDto[]; customers: CustomerDto[]; items: ItemDto[];
+  setError: (e: string | null) => void; reload: () => Promise<void>;
+}) {
+  return (
+    <div className="cols">
+      <div className="card">
+        <div className="card__head"><Icon name="wallet" /><span className="card__title">Sales &amp; installation</span>
+          <span className="count">{sales.length}</span></div>
+        <div className="card__body"><div className="rows">
+          {sales.map((s) => (
+            <div key={s.id} className="row">
+              <div className="row__main">
+                <div className="row__title">{s.invoiceNumber}<span className="dot">·</span>{s.customerName ?? "Walk-in"}</div>
+                <div className="row__sub">{s.saleDate}<span className="dot">·</span>Total {inr(s.totalAmount)}
+                  {s.balance > 0 ? <><span className="dot">·</span>Bal {inr(s.balance)}</> : null}</div>
+              </div>
+              <span className={statusBadgeClass(s.status)}>{prettyStatus(s.status)}</span>
+            </div>
+          ))}
+          {sales.length === 0 && <div className="empty">No sales yet.</div>}
+        </div></div>
+      </div>
+
+      <NewSaleCard customers={customers} items={items} setError={setError} reload={reload} />
+    </div>
+  );
+}
+
+function NewSaleCard({ customers, items, setError, reload }: {
+  customers: CustomerDto[]; items: ItemDto[]; setError: (e: string | null) => void; reload: () => Promise<void>;
+}) {
+  const [inv, setInv] = useState("");
+  const [customerId, setCustomerId] = useState("");
+  const [saleDate, setSaleDate] = useState(today());
+  const [lines, setLines] = useState<{ itemId: string; qty: string }[]>([{ itemId: "", qty: "" }]);
+  const [installation, setInstallation] = useState("");
+  const [labour, setLabour] = useState("");
+  const [paid, setPaid] = useState("");
+  const [mode, setMode] = useState("cash");
+  const [busy, setBusy] = useState(false);
+
+  const lineAmt = (l: { itemId: string; qty: string }) => {
+    const it = items.find((i) => i.id === l.itemId);
+    return it ? Number(l.qty || 0) * it.rate * (1 + it.taxPercentage / 100) : 0;
+  };
+  const total = lines.reduce((s, l) => s + lineAmt(l), 0) + Number(installation || 0) + Number(labour || 0);
+  const balance = Math.max(0, total - Number(paid || 0));
+  const setLine = (idx: number, patch: Partial<{ itemId: string; qty: string }>) =>
+    setLines((ls) => ls.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+
+  async function create(e: React.FormEvent) {
+    e.preventDefault();
+    const valid = lines
+      .filter((l) => l.itemId && Number(l.qty) > 0)
+      .map((l) => {
+        const it = items.find((i) => i.id === l.itemId)!;
+        return { itemId: l.itemId, quantity: Number(l.qty), rate: it.rate, taxPercentage: it.taxPercentage };
+      });
+    if (!inv || valid.length === 0) { setError("Invoice number and at least one line are required."); return; }
+    setBusy(true); setError(null);
+    try {
+      await api.createSale({
+        invoiceNumber: inv, customerId: customerId || null, saleDate,
+        installationCharges: Number(installation || 0), labourCharges: Number(labour || 0),
+        paidAmount: Number(paid || 0), mode, lines: valid,
+      });
+      setInv(""); setLines([{ itemId: "", qty: "" }]); setInstallation(""); setLabour(""); setPaid("");
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create sale");
+    } finally { setBusy(false); }
+  }
+
   return (
     <div className="card">
-      <div className="card__head"><Icon name="wallet" /><span className="card__title">Sales &amp; installation</span>
-        <span className="count">{sales.length}</span></div>
-      <div className="card__body"><div className="rows">
-        {sales.map((s) => (
-          <div key={s.id} className="row">
-            <div className="row__main">
-              <div className="row__title">{s.invoiceNumber}<span className="dot">·</span>{s.customerName ?? "Walk-in"}</div>
-              <div className="row__sub">{s.saleDate}<span className="dot">·</span>Total {inr(s.totalAmount)}
-                {s.balance > 0 ? <><span className="dot">·</span>Bal {inr(s.balance)}</> : null}</div>
-            </div>
-            <span className={statusBadgeClass(s.status)}>{prettyStatus(s.status)}</span>
+      <div className="card__head"><Icon name="plus" /><span className="card__title">New sale / invoice</span></div>
+      <div className="card__body">
+        <form className="form" onSubmit={create}>
+          <div className="form--inline">
+            <div className="field"><label>Invoice #</label>
+              <input className="input" value={inv} onChange={(e) => setInv(e.target.value)} required /></div>
+            <div className="field"><label>Date</label>
+              <input className="input" type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} /></div>
           </div>
-        ))}
-        {sales.length === 0 && <div className="empty">No sales yet.</div>}
-      </div></div>
+          <div className="field"><label>Customer</label>
+            <select className="select" value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+              <option value="">— Walk-in —</option>
+              {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select></div>
+
+          <div className="form__divider">Line items</div>
+          {lines.map((l, idx) => (
+            <div key={idx} className="form--inline" style={{ alignItems: "flex-end" }}>
+              <div className="field" style={{ flex: 2 }}><label>Item</label>
+                <select className="select" value={l.itemId} onChange={(e) => setLine(idx, { itemId: e.target.value })}>
+                  <option value="">— Select —</option>
+                  {items.map((it) => <option key={it.id} value={it.id}>{it.itemName}</option>)}
+                </select></div>
+              <div className="field"><label>Qty</label>
+                <input className="input" type="number" min="0" value={l.qty} onChange={(e) => setLine(idx, { qty: e.target.value })} /></div>
+              <div className="field" style={{ flex: "0 0 90px" }}><label>Amount</label>
+                <input className="input" value={lineAmt(l) ? inr(lineAmt(l)) : "—"} readOnly /></div>
+              {lines.length > 1 && (
+                <button type="button" className="iconbtn" title="Remove line"
+                        onClick={() => setLines((ls) => ls.filter((_, i) => i !== idx))}><Icon name="trash" /></button>
+              )}
+            </div>
+          ))}
+          <button type="button" className="btn btn--ghost" onClick={() => setLines((ls) => [...ls, { itemId: "", qty: "" }])}>
+            <Icon name="plus" />Add line
+          </button>
+
+          <div className="form--inline">
+            <div className="field"><label>Installation ₹</label>
+              <input className="input" type="number" min="0" value={installation} onChange={(e) => setInstallation(e.target.value)} /></div>
+            <div className="field"><label>Labour ₹</label>
+              <input className="input" type="number" min="0" value={labour} onChange={(e) => setLabour(e.target.value)} /></div>
+          </div>
+          <div className="form--inline">
+            <div className="field"><label>Paid ₹</label>
+              <input className="input" type="number" min="0" value={paid} onChange={(e) => setPaid(e.target.value)} /></div>
+            <div className="field"><label>Mode</label>
+              <select className="select" value={mode} onChange={(e) => setMode(e.target.value)}>
+                <option value="cash">Cash</option><option value="upi">UPI</option>
+                <option value="bank">Bank</option><option value="cheque">Cheque</option>
+              </select></div>
+          </div>
+
+          <div className="pnl-total is-pos"><span>Total</span><span>{inr(total)}</span></div>
+          {balance > 0 && <span className="hint">Balance after payment: {inr(balance)}</span>}
+          <button className="btn btn--block" disabled={busy}><Icon name="plus" />{busy ? "Creating…" : "Create invoice"}</button>
+        </form>
+      </div>
     </div>
   );
 }
